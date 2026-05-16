@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earthly Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+</head>
+<body>
+    <div class="chat-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h2 class="accent-text logo">Earthly</h2>
+            <div class="glass-card user-info">
+                <p class="meta-text">Logged in as</p>
+                <p id="currentUser" class="fw-500"></p>
+            </div>
+            <button id="disconnectBtn" class="btn-secondary full-width">Disconnect</button>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-main">
+            <header class="chat-header glass">
+                <h3>Global Chat (Mock)</h3>
+                <p class="meta-text">Chatting with everyone connected</p>
+            </header>
+
+            <div class="messages-area" id="messagesArea">
+                <!-- Messages will appear here -->
+            </div>
+
+            <!-- Upload Progress -->
+            <div id="uploadProgressContainer" class="upload-progress-container hidden">
+                <p class="meta-text">Uploading... <span id="progressText">0%</span></p>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progressBar"></div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <footer class="chat-footer">
+                <form id="chatForm" class="chat-form">
+                    <input type="file" id="mediaInput" accept="image/*,video/*" style="display: none;">
+                    <button type="button" class="btn-icon" id="attachBtn" title="Attach File (Max 500MB)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                        </svg>
+                    </button>
+                    <input type="text" id="messageInput" class="input-field message-input" placeholder="Type a message...">
+                    <button type="submit" class="btn-primary" id="sendBtn">Send</button>
+                </form>
+            </footer>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

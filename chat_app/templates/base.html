@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Rooted">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="google-site-verification" content="xOJjxOXu_03RzBn2gjTwbHahxsUjslH4h5aJrHUgmqI" />
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.png') }}">
+  <title>Rooted Feed - Authentic Social Networking</title>
+  <meta name="description"
+    content="Rooted is the new social feed connecting you to authentic conversations. Join the Rooted Feed today to discover community, explore trends, and engage in real-time.">
+  <meta name="keywords" content="Rooted, Rooted Feed, Social Media, Authentic Networking, Community, Real-time Chat">
+  <meta name="author" content="Rooted Social">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+
+  <!-- Open Graph / Social Media Previews -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Rooted Feed">
+  <meta property="og:description" content="Join the Rooted Feed. The internet's most authentic social media platform.">
+  <meta property="og:site_name" content="Rooted Feed">
+  <meta property="og:url" content="https://rooted-feed.online/">
+  <meta property="og:image" content="{{ url_for('static', filename='favicon.png', _external=True) }}">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Rooted Feed",
+    "url": "https://www.rooted-feed.online/",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://www.rooted-feed.online/search?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    },
+    "description": "Rooted is the internet's most authentic social media platform for real-time community engagement."
+  }
+  </script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+
+<body>
+
+  {% block content %}{% endblock %}
+
+</body>
+
+</html>

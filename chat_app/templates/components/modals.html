@@ -1,0 +1,2630 @@
+<!-- PROFILE EDIT MODAL -->
+  <div id="profileEditModal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:20000; align-items:center; justify-content:center; backdrop-filter:blur(12px);">
+    <div
+      style="background:var(--bg); border:1px solid var(--border); border-radius:32px; padding:32px; width:90%; max-width:440px; box-shadow:0 0 50px rgba(0,0,0,0.5);">
+      <h2 style="margin:0 0 24px 0; font-size:26px; color:var(--text-main); font-weight:700;">Edit Profile</h2>
+
+      <div style="text-align:center; margin-bottom:24px;">
+        <div id="cropContainer"
+          style="width:140px; height:140px; margin:0 auto 20px auto; border-radius:50%; overflow:hidden; background:var(--surface-bright); border:2px solid var(--accent); box-shadow:0 0 20px var(--accent-glow);">
+          <img id="profileCropImage" style="max-width:100%; display:none;">
+        </div>
+        <input type="file" id="profilePhotoInput" accept="image/*" style="display:none;"
+          onchange="loadProfilePhoto(event)">
+        <button class="node-pill"
+          style="padding:8px 20px; font-size:13px; border-color:var(--accent); color:var(--accent);"
+          onclick="document.getElementById('profilePhotoInput').click()">Change Photo</button>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label
+          style="display:block; font-size:13px; color:var(--text-dim); margin-bottom:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Display
+          Name</label>
+        <input type="text" id="editProfileName"
+          style="width:100%; padding:14px; border-radius:16px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:var(--text-main); outline:none; font-size:15px; font-family:inherit;">
+      </div>
+
+      <div style="margin-bottom:24px;">
+        <label
+          style="display:block; font-size:13px; color:var(--text-dim); margin-bottom:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Bio</label>
+        <textarea id="editProfileBio"
+          style="width:100%; padding:14px; border-radius:16px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:var(--text-main); outline:none; font-size:15px; font-family:inherit; resize:vertical; min-height:100px;"></textarea>
+      </div>
+
+      <div
+        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; padding:16px; background:var(--cream); border-radius:12px;">
+        <div>
+          <div style="font-weight:600; font-size:15px; color:var(--earth1);">Private Profile</div>
+          <div style="font-size:13px; color:var(--stone); margin-top:2px;">Hide your posts from the global feed</div>
+        </div>
+        <label class="toggle-switch" style="position:relative; display:inline-block; width:50px; height:28px;">
+          <input type="checkbox" id="editProfilePrivate" style="opacity:0; width:0; height:0;">
+          <span class="toggle-slider"
+            style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:var(--stone); transition:.4s; border-radius:34px;">
+            <span class="toggle-knob"
+              style="position:absolute; height:20px; width:20px; left:4px; bottom:4px; background-color:white; transition:.4s; border-radius:50%;"></span>
+          </span>
+        </label>
+      </div>
+
+      <button class="btn-primary" style="width:100%; padding:16px; border-radius:16px; font-size:16px;"
+        onclick="saveProfile()" id="saveProfileBtn">Save Profile</button>
+      <button
+        style="width:100%; padding:16px; background:none; border:none; color:var(--stone); margin-top:8px; cursor:pointer;"
+        onclick="document.getElementById('profileEditModal').style.display='none'">Cancel</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script id="user-data"
+      type="application/json">{{ current_user | tojson | safe if current_user else "null" }}</script>
+    <script>
+      // --- GLOBAL VARS & SETUP ---
+      const socket = io();
+      const currentUser = JSON.parse(document.getElementById('user-data').textContent);
+      window.currentUser = currentUser; // expose to story IIFE
+
+      let replyingToPostId = null;
+      let ALL_POSTS = [];
+      let cropper = null;
+
+      // --- INITIALIZE ---
+      if (currentUser) {
+        socket.emit('join', currentUser);
+
+      }
+
+      socket.on('delete_post', (data) => {
+        // Remove from ALL_POSTS cache
+        ALL_POSTS = ALL_POSTS.filter(p => p.id !== data.id);
+        // Remove card from every rendered area
+        document.querySelectorAll(`#post-${data.id}`).forEach(el => el.remove());
+      });
+
+      socket.on('edit_post', (data) => {
+        // Update cache
+        const cached = ALL_POSTS.find(p => p.id === data.id);
+        if (cached) cached.text = data.text;
+        // Update rendered text in every area
+        document.querySelectorAll(`#post-${data.id} .post-text`).forEach(el => {
+          el.innerHTML = formatRichText(data.text);
+        });
+      });
+
+      let displayedPostsCount = 0;
+      const POSTS_PER_PAGE = 15;
+
+      socket.on('initial_posts', (posts) => {
+        ALL_POSTS = posts;
+        displayedPostsCount = 0;
+        const area = document.getElementById('postsArea');
+        if (area) {
+          area.innerHTML = '';
+          const empty = document.getElementById('feedEmptyState');
+          if (empty) empty.style.display = posts.length === 0 ? 'block' : 'none';
+          if (posts.length > 0) loadMorePosts();
+        }
+      });
+
+      function loadMorePosts() {
+        const area = document.getElementById('postsArea');
+        if (!area) return;
+        const nextPosts = ALL_POSTS.slice(displayedPostsCount, displayedPostsCount + POSTS_PER_PAGE);
+        if (nextPosts.length === 0) return;
+        const empty = document.getElementById('feedEmptyState');
+        if (empty) empty.style.display = 'none';
+        nextPosts.forEach(p => addPostToFeed(p, false, 'postsArea'));
+        displayedPostsCount += nextPosts.length;
+      }
+
+      document.getElementById('postsArea')?.addEventListener('scroll', function () {
+        if (this.scrollTop + this.clientHeight >= this.scrollHeight - 400) {
+          loadMorePosts();
+        }
+      });
+
+      socket.on('receive_post', (post) => {
+        // Keep global state updated
+        const exists = ALL_POSTS.find(p => p.id === post.id);
+        if (!exists) {
+          ALL_POSTS.unshift(post);
+          displayedPostsCount++;
+
+          // Add to global feed if on For You tab
+          if (currentFeedTab === 'ForYou') {
+            addPostToFeed(post, true, 'postsArea');
+          }
+          // Add to Following feed if on Following tab AND we follow the sender (or it's us)
+          else if (currentFeedTab === 'Following') {
+            const isOwn = currentUser && post.handle === currentUser.handle;
+            // We don't have the full following list here, but we can optimistically show own posts
+            if (isOwn) {
+              addPostToFeed(post, true, 'postsArea');
+            }
+          }
+        }
+
+        // If viewing profile, also render there if it matches
+        const pView = document.getElementById('profileView');
+        if (pView && pView.style.display === 'flex') {
+          const currentProfile = document.getElementById('profileViewHandle').innerText;
+          if (!exists && (post.handle === currentProfile || post.retweetedFrom === currentProfile)) {
+            addPostToFeed(post, true, 'profilePostsArea');
+          }
+        }
+      });
+
+      socket.on('update_likes', (data) => {
+        const likeCountSpan = document.getElementById(`like-count-${data.id}`);
+        const likeBtn = document.getElementById(`like-btn-${data.id}`);
+        if (likeCountSpan) {
+          likeCountSpan.textContent = data.likes > 0 ? data.likes : '';
+          if (data.userLiked) {
+            // Animate and mark as liked
+            likeBtn.classList.remove('liked');
+            void likeBtn.offsetWidth; // trigger reflow
+            likeBtn.classList.add('liked');
+          } else {
+            // Unliked — remove styling
+            likeBtn.classList.remove('liked');
+          }
+        }
+      });
+
+      // ── Utility: close every modal before opening a new one ──────────
+      function closeAllModals() {
+        // Only close modals we are NOT about to open
+        var profileEdit = document.getElementById('profileEditModal');
+        if (profileEdit) profileEdit.style.display = 'none';
+
+        var storyModal = document.getElementById('createStoryModal');
+        if (storyModal) storyModal.style.display = 'none';
+      }
+
+      // ── FIX 2 & FIX 3: openProfileEdit() ──────────────────────────
+      // Shows current photo in crop circle instead of black empty circle
+      function openProfileEdit() {
+        closeAllModals();
+        document.getElementById('profileEditModal').style.display = 'flex';
+        if (currentUser) {
+          document.getElementById('editProfileName').value = currentUser.name || '';
+          document.getElementById('editProfileBio').value = currentUser.bio || '';
+          document.getElementById('editProfilePrivate').checked = !!currentUser.is_private;
+
+          const cropImg = document.getElementById('profileCropImage');
+          const cropContainer = document.getElementById('cropContainer');
+
+          // Remove any old letter placeholder
+          const oldLetter = cropContainer.querySelector('.crop-initial');
+          if (oldLetter) oldLetter.remove();
+
+          if (currentUser.photo) {
+            // Show current profile photo immediately
+            cropImg.src = currentUser.photo;
+            cropImg.style.display = 'block';
+            cropImg.style.width = '100%';
+            cropImg.style.height = '100%';
+            cropImg.style.objectFit = 'cover';
+            cropContainer.style.background = '';
+          } else {
+            // Show gradient background with initial letter
+            cropImg.style.display = 'none';
+            cropContainer.style.background = 'linear-gradient(135deg, #f09433, #dc2743, #bc1888)';
+            const letter = document.createElement('span');
+            letter.className = 'crop-initial';
+            letter.textContent = (currentUser.name || 'U').charAt(0).toUpperCase();
+            cropContainer.appendChild(letter);
+          }
+
+          // Destroy any stale cropper instance
+          if (cropper) { cropper.destroy(); cropper = null; }
+        }
+      }
+
+      function loadProfilePhoto(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const img = document.getElementById('profileCropImage');
+        img.src = URL.createObjectURL(file);
+        img.style.display = 'block';
+
+        if (cropper) cropper.destroy();
+        cropper = new Cropper(img, {
+          aspectRatio: 1,
+          viewMode: 1,
+          autoCropArea: 1
+        });
+      }
+
+      function saveProfile() {
+        const btn = document.getElementById('saveProfileBtn');
+        btn.innerText = 'Saving...';
+
+        const nameVal = document.getElementById('editProfileName').value.trim();
+        const bioVal = document.getElementById('editProfileBio').value.trim();
+        const isPrivate = document.getElementById('editProfilePrivate').checked;
+
+        const doSave = (formData) => {
+          fetch('/upload', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                // --- Update currentUser object in-memory ---
+                currentUser.name = nameVal || currentUser.name;
+                currentUser.bio = bioVal;
+                currentUser.is_private = isPrivate;
+                if (data.url) currentUser.photo = data.url;
+
+                // --- Update navbar avatar ---
+                const navAvatar = document.getElementById('navAvatar');
+                if (currentUser.photo) {
+                  if (navAvatar.tagName === 'DIV') {
+                    // replace div with img
+                    const img = document.createElement('img');
+                    img.src = currentUser.photo;
+                    img.className = 'mini-avatar';
+                    img.id = 'navAvatar';
+                    img.style.objectFit = 'cover';
+                    navAvatar.replaceWith(img);
+                  } else {
+                    navAvatar.src = currentUser.photo;
+                  }
+                } else {
+                  navAvatar.textContent = currentUser.name[0].toUpperCase();
+                }
+
+                // --- Update composer avatar ---
+                const compAvatar = document.getElementById('composerAvatar');
+                if (compAvatar && currentUser.photo) {
+                  compAvatar.innerHTML = `<img src="${currentUser.photo}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+                } else if (compAvatar) {
+                  compAvatar.textContent = currentUser.name[0].toUpperCase();
+                }
+
+                // --- If profile view is open for current user, update it too ---
+                const pHandle = document.getElementById('profileViewHandle');
+                if (pHandle && pHandle.innerText === currentUser.handle) {
+                  document.getElementById('profileViewName').innerText = currentUser.name;
+                  document.getElementById('profileViewBio').innerText = currentUser.bio;
+                  const pAvatar = document.getElementById('profileViewAvatar');
+                  if (pAvatar && currentUser.photo) pAvatar.src = currentUser.photo;
+                }
+
+                // --- Fix 5: Update all existing post-card avatars for this user in the feed ---
+                if (data.url) {
+                  document.querySelectorAll(`[data-post-handle="${currentUser.handle}"]`).forEach(el => {
+                    el.src = data.url;
+                  });
+                }
+
+                // Close modal and show toast
+                document.getElementById('profileEditModal').style.display = 'none';
+                showNotif('Profile updated! ✅');
+                btn.innerText = 'Save Profile';
+
+                // Destroy cropper so it doesn't linger
+                if (cropper) { cropper.destroy(); cropper = null; }
+                document.getElementById('profileCropImage').style.display = 'none';
+              } else {
+                showNotif('Save failed: ' + (data.error || 'Unknown error'));
+                btn.innerText = 'Save Profile';
+              }
+            })
+            .catch(() => {
+              showNotif('Network error saving profile.');
+              btn.innerText = 'Save Profile';
+            });
+        };
+
+        if (!cropper) {
+          const formData = new FormData();
+          formData.append('type', 'profile');
+          formData.append('name', nameVal);
+          formData.append('bio', bioVal);
+          formData.append('is_private', String(isPrivate));
+          doSave(formData);
+        } else {
+          cropper.getCroppedCanvas({ width: 240, height: 240 }).toBlob((blob) => {
+            const formData = new FormData();
+            formData.append('media', blob, 'profile.jpg');
+            formData.append('type', 'profile');
+            formData.append('name', nameVal);
+            formData.append('bio', bioVal);
+            formData.append('is_private', String(isPrivate));
+            doSave(formData);
+          }, 'image/jpeg', 0.92);
+        }
+      }
+
+      // --- COMPOSER ---
+      // --- POST MANAGEMENT ---
+      function togglePostMenu(postId, btn) {
+        // Close all other open menus first
+        document.querySelectorAll('.post-menu-dropdown.open').forEach(d => {
+          if (d.id !== `menu-${postId}`) d.classList.remove('open');
+        });
+        document.getElementById(`menu-${postId}`).classList.toggle('open');
+        // Close on outside click
+        const close = (e) => {
+          if (!btn.closest('.post-menu-wrap').contains(e.target)) {
+            document.getElementById(`menu-${postId}`)?.classList.remove('open');
+            document.removeEventListener('click', close);
+          }
+        };
+        setTimeout(() => document.addEventListener('click', close), 0);
+      }
+
+      function deletePost(postId) {
+        document.getElementById(`menu-${postId}`)?.classList.remove('open');
+        if (window.confirm('Delete this post? This cannot be undone.')) {
+          fetch(`/api/post/${postId}`, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => {
+              if (data.error) showNotif('Error: ' + data.error);
+              else showNotif('Post deleted 🗑️');
+            });
+        }
+      }
+
+      let editingPostId = null;
+      function openEditPost(postId) {
+        document.getElementById(`menu-${postId}`)?.classList.remove('open');
+        editingPostId = postId;
+        const cached = ALL_POSTS.find(p => p.id === postId);
+        document.getElementById('editPostText').value = cached ? cached.text : '';
+        document.getElementById('editPostModal').style.display = 'flex';
+        document.getElementById('editPostModal').classList.add('open');
+        document.getElementById('editPostText').focus();
+      }
+
+      function closeEditModal() {
+        document.getElementById('editPostModal').style.display = 'none';
+        document.getElementById('editPostModal').classList.remove('open');
+        editingPostId = null;
+      }
+
+      function submitEditPost() {
+        const newText = document.getElementById('editPostText').value.trim();
+        if (!newText || !editingPostId) return;
+        fetch(`/api/post/${editingPostId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: newText })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) showNotif('Error: ' + data.error);
+            else { showNotif('Post updated ✅'); closeEditModal(); }
+          });
+      }
+
+      function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
+      }
+
+      // Track liked post IDs so we can toggle state locally before server responds
+      const likedPosts = new Set();
+
+      function createPost() {
+        const input = document.getElementById('msgInput');
+        const text = input.value.trim();
+        if (!text && !pendingMediaUrl) return;
+
+        const btn = document.getElementById('sendBtn');
+        btn.disabled = true;
+
+        socket.emit('create_post', {
+          sender: currentUser.name,
+          handle: currentUser.handle,
+          text: text,
+          mediaUrl: pendingMediaUrl,
+          mediaType: pendingMediaType,
+          parentId: replyingToPostId,
+          node: document.getElementById('nodeSelect').value
+        });
+
+        input.value = '';
+        input.style.height = 'auto';
+        input.placeholder = "What is happening?!";
+        pendingMediaUrl = null;
+        pendingMediaType = null;
+        replyingToPostId = null;
+        cancelUpload();
+        showNotif('Your post was sent! 🌿');
+        // Re-enable after a short delay to prevent double-posting
+        setTimeout(() => { btn.disabled = false; }, 1000);
+      }
+
+      // ── FIX 5 & 6: likePost() with SVG heart animation ─────────────
+      function likePost(postId, btnEl) {
+        const isLiked = likedPosts.has(postId);
+        const countSpan = document.getElementById(`like-count-${postId}`);
+        const heartSvg = btnEl.querySelector('.heart-svg');
+        let currentCount = parseInt(countSpan.textContent) || 0;
+
+        if (isLiked) {
+          likedPosts.delete(postId);
+          btnEl.classList.remove('liked');
+          btnEl.setAttribute('aria-pressed', 'false');
+          countSpan.textContent = currentCount > 1 ? currentCount - 1 : '';
+          if (heartSvg) {
+            heartSvg.setAttribute('fill', 'none');
+            heartSvg.setAttribute('stroke', 'currentColor');
+          }
+        } else {
+          likedPosts.add(postId);
+          btnEl.classList.add('liked');
+          btnEl.setAttribute('aria-pressed', 'true');
+          countSpan.textContent = currentCount + 1;
+          if (heartSvg) {
+            heartSvg.setAttribute('fill', '#ed4956');
+            heartSvg.setAttribute('stroke', '#ed4956');
+          }
+        }
+        socket.emit('like_post', postId);
+      }
+
+      function replyToPost(postId, handle) {
+        replyingToPostId = postId;
+        const input = document.getElementById('msgInput');
+        input.placeholder = `Replying to ${handle}...`;
+        input.focus();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      function retweetPost(postId) {
+        socket.emit('create_post', {
+          sender: currentUser.name,
+          handle: currentUser.handle,
+          isRetweet: true,
+          originalPostId: postId
+        });
+        showNotif('Rerooted! 🔁');
+      }
+
+      // ── FIX 5: bookmarkPost() with SVG fill ─────────────────────────
+      const bookmarkedPosts = new Set();
+      function bookmarkPost(postId, btnEl) {
+        if (bookmarkedPosts.has(postId)) {
+          bookmarkedPosts.delete(postId);
+          btnEl.classList.remove('bookmarked');
+          showNotif('Removed from Bookmarks');
+        } else {
+          bookmarkedPosts.add(postId);
+          btnEl.classList.add('bookmarked');
+          showNotif('Saved to Bookmarks! 🔖');
+        }
+        socket.emit('bookmark_post', postId);
+      }
+
+      function showSkeletons(targetId = 'postsArea', count = 3) {
+        const area = document.getElementById(targetId);
+        if (!area) return;
+        let html = '';
+        for (let i = 0; i < count; i++) {
+          html += `
+          <div class="post-card" style="pointer-events: none;">
+            <div style="display:flex; flex-direction:column; width:100%">
+              <div style="display:flex; gap:16px;">
+                <div class="post-avatar skeleton-earthy" style="background: transparent;"></div>
+                <div class="post-content">
+                  <div class="post-header" style="gap:12px; margin-bottom: 12px; display: flex;">
+                    <div class="skeleton-earthy" style="height: 16px; width: 120px; border-radius: 8px;"></div>
+                    <div class="skeleton-earthy" style="height: 16px; width: 80px; border-radius: 8px;"></div>
+                  </div>
+                  <div class="skeleton-earthy" style="height: 16px; width: 100%; border-radius: 8px; margin-bottom: 8px;"></div>
+                  <div class="skeleton-earthy" style="height: 16px; width: 80%; border-radius: 8px; margin-bottom: 16px;"></div>
+                  <div class="skeleton-earthy" style="height: 200px; width: 100%; border-radius: 16px; margin-bottom: 16px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        }
+        area.innerHTML = html;
+      }
+
+      let currentFeedTab = 'ForYou';
+      let followingPosts = []; // cache for following tab
+
+      function switchFeedTab(tab) {
+        currentFeedTab = tab;
+
+        // Update tab indicator styles
+        document.querySelectorAll('.feed-header span').forEach(el => el.classList.remove('active'));
+        const activeTab = tab === 'ForYou' ? document.getElementById('tabForYou') : document.getElementById('tabFollowing');
+        if (activeTab) activeTab.classList.add('active');
+
+        // Show composer only on ForYou tab
+        const composer = document.getElementById('feedComposer');
+        if (composer) composer.style.display = tab === 'ForYou' ? 'flex' : 'none';
+
+        const area = document.getElementById('postsArea');
+
+        if (tab === 'ForYou') {
+          if (ALL_POSTS.length > 0) {
+            // Use cached posts — no server re-request needed
+            displayedPostsCount = 0;
+            area.innerHTML = '';
+            loadMorePosts();
+          } else {
+            showSkeletons('postsArea', 5);
+            socket.emit('join', {});
+          }
+        } else {
+          showSkeletons('postsArea', 3);
+          fetch('/api/posts/following')
+            .then(r => r.json())
+            .then(posts => {
+              followingPosts = posts;
+              if (posts.length === 0) {
+                area.innerHTML = `
+                <div style="text-align:center; padding:48px; color:var(--stone);">
+                  <div style="font-size:48px; margin-bottom:16px;">🌱</div>
+                  <div style="font-size:18px; font-weight:600; color:var(--earth1);">Nothing here yet</div>
+                  <div style="font-size:14px; margin-top:8px;">Follow people to see their posts here.</div>
+                </div>`;
+              } else {
+                posts.forEach(p => addPostToFeed(p, false, 'postsArea'));
+              }
+            });
+        }
+      }
+
+      function updateSEO(title, description) {
+        document.title = title ? `${title} | Rooted Feed` : "Rooted Feed - Authentic Social Networking";
+        const metaDesc = document.querySelector('meta[name="description"]');
+        if (metaDesc && description) metaDesc.setAttribute('content', description);
+      }
+
+      let currentTab = 'feedView'; // tracks the active view for badge logic
+
+      function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        if (event && event.currentTarget) event.currentTarget.classList.add('active');
+
+        const allViews = ['feedView', 'exploreView', 'aiView', 'profileView', 'messagesView', 'chatView', 'notificationsView', 'threadView', 'storyView'];
+        allViews.forEach(v => {
+          const el = document.getElementById(v);
+          if (el) el.style.display = 'none';
+        });
+
+        if (tab === 'feedView') {
+          document.getElementById('feedView').style.display = 'flex';
+          updateSEO("Home", "Join the Rooted Feed. The internet's most authentic social media platform.");
+          if (ALL_POSTS.length === 0) {
+            switchFeedTab(currentFeedTab);
+          } else {
+            const composer = document.getElementById('feedComposer');
+            if (composer) composer.style.display = currentFeedTab === 'ForYou' ? 'flex' : 'none';
+          }
+        } else if (tab === 'explore') {
+          document.getElementById('exploreView').style.display = 'flex';
+          updateSEO("Explore", "Explore authentic conversations and trending nodes on Rooted.");
+          filterExplorePosts();
+        } else if (tab === 'ai') {
+          document.getElementById('aiView').style.display = 'flex';
+          updateSEO("Rooted AI", "Talk to your earthy AI companion on Rooted.");
+          document.getElementById('aiInput').focus();
+        } else if (tab === 'messagesView') {
+          document.getElementById('messagesView').style.display = 'flex';
+          updateSEO("Messages", "Your private conversations on Rooted.");
+          // Clear message badge when entering messages tab
+          const badge = document.getElementById('navBadge');
+          const mobileBadge = document.getElementById('mobileChatBadge');
+          if (badge) badge.style.display = 'none';
+          if (mobileBadge) mobileBadge.style.display = 'none';
+        } else {
+          const target = document.getElementById(tab);
+          if (target) target.style.display = 'flex';
+        }
+      }
+
+      function openProfile(handle, name) {
+        switchTab('profileView');
+        const pView = document.getElementById('profileView');
+        pView.style.display = 'flex';
+
+        document.getElementById('profileViewName').innerText = name || handle;
+        document.getElementById('profileViewHandle').innerText = handle;
+
+        // ── FIX 3: Show cached avatar instantly on profile open ─────────
+        const pAvatar = document.getElementById('profileViewAvatar');
+        const pAvatarText = document.getElementById('profileViewAvatarText');
+
+        // --- STORY VIEW TRIGGER ---
+        // Make the profile avatar clickable to view stories if they exist
+        pAvatar.style.cursor = 'pointer';
+        pAvatar.onclick = () => {
+          if (typeof loadUserStories === 'function') {
+            loadUserStories(handle, name, pAvatar.src);
+          }
+        };
+        pAvatarText.style.cursor = 'pointer';
+        pAvatarText.onclick = pAvatar.onclick;
+
+        const cachedPost = ALL_POSTS.find(p => p.handle === (handle.startsWith('@') ? handle : '@' + handle) || p.handle === handle.replace(/^@/, ''));
+        if (cachedPost && cachedPost.senderPhoto) {
+          pAvatar.src = cachedPost.senderPhoto;
+          pAvatar.style.display = 'block';
+          pAvatarText.style.display = 'none';
+        } else {
+          pAvatar.style.display = 'none';
+          pAvatarText.textContent = (name || handle).charAt(0).toUpperCase();
+          pAvatarText.style.display = 'flex';
+        }
+
+        updateSEO(`${name || handle} (@${handle})`, `${name}'s profile on Rooted Feed. Where stories take root.`);
+
+        const pArea = document.getElementById('profilePostsArea');
+        pArea.innerHTML = ''; // clear
+
+        // Filter and render
+        const userPosts = ALL_POSTS.filter(p => p.handle === handle || p.retweetedFrom === handle);
+        userPosts.forEach(p => addPostToFeed(p, false, 'profilePostsArea'));
+      }
+
+      function closeProfile() {
+        document.getElementById('profileView').style.display = 'none';
+        document.getElementById('feedView').style.display = 'flex';
+      }
+
+      function goToMyProfile() {
+        openProfile(currentUser.handle, currentUser.name);
+      }
+
+      function openThread(postId) {
+        switchTab('threadView');
+
+        const tView = document.getElementById('threadView');
+        tView.style.display = 'flex';
+
+        const tArea = document.getElementById('threadPostsArea');
+        tArea.innerHTML = '';
+
+        // Find the main post
+        const parentPost = ALL_POSTS.find(p => p.id === postId);
+        if (parentPost) {
+          addPostToFeed(parentPost, false, 'threadPostsArea');
+          // Add a visual separator
+          tArea.innerHTML += '<div style="height:1px; background:var(--stone); opacity:0.1; margin:0 24px;"></div><div style="padding:16px 24px; font-weight:700; font-size:18px;">Replies</div>';
+
+          // Find and render all replies
+          const replies = ALL_POSTS.filter(p => p.parentId === postId);
+          // Sort oldest first for natural reading (optional, or rely on ALL_POSTS order)
+          replies.sort((a, b) => a.timestamp - b.timestamp);
+
+          if (replies.length > 0) {
+            replies.forEach(p => addPostToFeed(p, false, 'threadPostsArea'));
+          } else {
+            tArea.innerHTML += '<div style="padding:24px; color:var(--stone); text-align:center;">No replies yet. Be the first to reply!</div>';
+          }
+        }
+      }
+
+      function closeThread() {
+        document.getElementById('threadView').style.display = 'none';
+        document.getElementById('feedView').style.display = 'flex';
+      }
+
+      function formatRichText(text) {
+        if (!text) return '';
+        // Escape HTML
+        let safeText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+        const urls = [];
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        safeText = safeText.replace(urlRegex, match => {
+          urls.push(match);
+          return `__URL_${urls.length - 1}__`;
+        });
+
+        safeText = safeText.replace(/@([a-zA-Z0-9_]+)/g, (match, handle) => {
+          return `<span class="rich-mention" style="color:var(--green3); cursor:pointer; font-weight:600;" onclick="event.stopPropagation(); openProfile('${handle}', '${handle}')">${match}</span>`;
+        });
+
+        safeText = safeText.replace(/#([a-zA-Z0-9_]+)/g, (match, tag) => {
+          return `<span class="rich-hashtag" style="color:var(--green3); cursor:pointer; font-weight:600;" onclick="event.stopPropagation(); document.getElementById('searchExplore').value='${match}'; switchTab('explore'); filterExplorePosts();">${match}</span>`;
+        });
+
+        safeText = safeText.replace(/__URL_(\d+)__/g, (match, i) => {
+          const url = urls[i];
+          return `<a href="${url}" target="_blank" onclick="event.stopPropagation();" class="rich-link" style="color:var(--green3); text-decoration:none;">${url}</a>`;
+        });
+
+        safeText = safeText.replace(/\n/g, '<br>');
+        return safeText;
+      }
+
+      function buildPostActionsHTML(post) {
+        return `
+    <div class="post-actions" role="group" aria-label="Post actions">
+
+      <div class="post-action" onclick="replyToPost('${post.id}', '${post.handle}')"
+           title="Reply" role="button" tabindex="0" aria-label="Reply to post">
+        <div class="action-icon">
+          <svg class="action-svg" width="18" height="18" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="post-action" onclick="retweetPost('${post.originalPostId || post.id}')"
+           title="Reroot" role="button" tabindex="0" aria-label="Reroot">
+        <div class="action-icon">
+          <svg class="action-svg" width="18" height="18" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+            <path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="post-action like ${post.userLiked ? 'liked' : ''}"
+           id="like-btn-${post.id}"
+           onclick="likePost('${post.id}', this)"
+           title="Like" role="button" tabindex="0"
+           aria-label="Like post" aria-pressed="${post.userLiked ? 'true' : 'false'}">
+        <div class="action-icon">
+          <svg class="heart-svg" width="18" height="18" viewBox="0 0 24 24"
+               fill="${post.userLiked ? '#ed4956' : 'none'}"
+               stroke="${post.userLiked ? '#ed4956' : 'currentColor'}"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+        </div>
+        <span id="like-count-${post.id}">${post.likes > 0 ? post.likes : ''}</span>
+      </div>
+
+      <div class="post-action" onclick="bookmarkPost('${post.id}', this)"
+           title="Bookmark" role="button" tabindex="0" aria-label="Save post">
+        <div class="action-icon">
+          <svg class="action-svg" width="18" height="18" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="post-action" title="Share"
+           onclick="sharePost('${post.id}', event)"
+           role="button" tabindex="0" aria-label="Share post">
+        <div class="action-icon">
+          <svg class="action-svg" width="18" height="18" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+        </div>
+      </div>
+
+    </div>
+  `;
+      }
+
+      // --- RENDER POST ---
+      function addPostToFeed(post, prepend = false, targetId = 'postsArea') {
+        // Seed the likedPosts set from server-provided userLiked flag
+        if (post.userLiked) likedPosts.add(post.id);
+        const area = document.getElementById(targetId);
+        const card = document.createElement('div');
+        card.className = 'post-card';
+        card.id = `post-${post.id}`;
+
+        const d = new Date(post.timestamp);
+        const timeStr = d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
+
+        let mediaHtml = '';
+        if (post.mediaUrl) {
+          const altText = post.text ? post.text.substring(0, 100) : "Post media on Rooted";
+          if (post.mediaType === 'image') {
+            mediaHtml = `<div class="post-media" onclick="openThread('${post.id}')" style="cursor:pointer;"><img src="${post.mediaUrl}" alt="${altText}"></div>`;
+          } else if (post.mediaType === 'video') {
+            mediaHtml = `<div class="post-media"><video src="${post.mediaUrl}" controls aria-label="${altText}"></video></div>`;
+          }
+        }
+
+        let textHtml = '';
+        if (post.text) {
+          const formattedText = formatRichText(post.text);
+          if (post.text.length > 280) {
+            const shortText = post.text.substring(0, 280);
+            const formattedShort = formatRichText(shortText);
+
+            // Avoid quotes breaking HTML
+            const escapedFull = formattedText.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            textHtml = `
+            <div class="post-text" id="text-${post.id}" onclick="openThread('${post.id}')" style="cursor:pointer;">
+              ${formattedShort}... <span style="color:var(--green3);cursor:pointer;font-weight:600;" onclick="event.stopPropagation(); document.getElementById('text-${post.id}').innerHTML='${escapedFull}';">Read More</span>
+            </div>`;
+          } else {
+            textHtml = `<div class="post-text" onclick="openThread('${post.id}')" style="cursor:pointer;">${formattedText}</div>`;
+          }
+        }
+
+        let avatarHtml = '';
+        if (post.senderPhoto) {
+          avatarHtml = `<img src="${post.senderPhoto}" class="post-avatar" style="object-fit:cover;" data-post-handle="${post.handle}">`;
+        } else {
+          const initial = post.sender.charAt(0).toUpperCase();
+          avatarHtml = `<div class="post-avatar">${initial}</div>`;
+        }
+
+        let metaHtml = '';
+        if (post.isRetweet && post.retweetedFrom) {
+          metaHtml += `<div style="font-size:13px; color:var(--stone); margin-bottom:8px; display:flex; align-items:center; gap:6px;"><span style="font-size:16px">🔁</span> ${post.retweetedFrom} rerooted</div>`;
+        } else if (post.parentId && post.replyToHandle) {
+          metaHtml += `<div style="font-size:13px; color:var(--stone); margin-bottom:8px;">Replying to <span onclick="openProfile('${post.replyToHandle}', '${post.replyToHandle}')" style="color:var(--green3); cursor:pointer;">${post.replyToHandle}</span></div>`;
+        }
+
+        let menuHtml = '';
+        if (currentUser && post.handle === currentUser.handle) {
+          menuHtml = `
+          <div class="post-menu-wrap">
+            <button class="post-menu-btn" onclick="togglePostMenu('${post.id}', this)" aria-label="Post options">&#8943;</button>
+            <div class="post-menu-dropdown" id="menu-${post.id}">
+              <div class="post-menu-item" onclick="openEditPost('${post.id}')">✏️ Edit</div>
+              <div class="post-menu-item danger" onclick="deletePost('${post.id}')">🗑️ Delete</div>
+            </div>
+          </div>`;
+        }
+
+        const escName = post.sender.replace(/'/g, "\\'");
+        const escHandle = post.handle.replace(/'/g, "\\'");
+
+        card.innerHTML = `
+    <div style="display:flex; flex-direction:column; width:100%">
+      ${metaHtml}
+      <div style="display:flex; gap:16px;">
+        ${avatarHtml}
+        <div class="post-content">
+          <div class="post-header">
+            <span class="post-name" onclick="openProfile('${escHandle}', '${escName}')">${post.sender}</span>
+            <span class="post-handle" onclick="openProfile('${escHandle}', '${escName}')" style="cursor:pointer;">${post.handle}</span>
+            <span class="post-time">${timeStr}</span>
+            ${post.node && post.node !== 'For You' ? `<span style="font-size:12px; background:rgba(74,124,89,0.1); color:var(--green3); padding:4px 8px; border-radius:12px; margin-left:8px; font-weight:600;">${post.node}</span>` : ''}
+            ${menuHtml}
+          </div>
+          ${textHtml}
+          ${mediaHtml}
+          ${buildPostActionsHTML(post)}
+        </div>
+      </div>
+    </div>
+  `;
+
+        if (prepend) {
+          area.insertBefore(card, area.firstChild);
+        } else {
+          area.appendChild(card);
+        }
+      }
+
+      function sharePost(postId, e) {
+        e && e.stopPropagation();
+        const url = `https://rooted-feed.online/post/${postId}`;
+        if (navigator.share) {
+          navigator.share({ title: 'Check this out on Rooted', url: url })
+            .catch(() => { }); // User cancelled
+        } else {
+          navigator.clipboard.writeText(url).then(() => {
+            showNotif('🔗 Link copied to clipboard!');
+          });
+        }
+      }
+
+      // --- UPLOAD ---
+      let pendingMediaUrl = null;
+      let pendingMediaType = null;
+
+      function handleFileUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const pct = document.getElementById('uploadPct');
+        const bar = document.getElementById('uploadBar');
+        const preview = document.getElementById('uploadPreview');
+        const icon = document.getElementById('uploadIcon');
+
+        // Fix 1: Use classList instead of inline style so cancelUpload() can hide it correctly
+        preview.classList.add('show');
+        bar.style.width = '0%';
+        pct.innerText = '0%';
+
+        if (file.type.startsWith('video/')) icon.innerText = '🎥';
+        else icon.innerText = '📷';
+
+        const formData = new FormData();
+        formData.append('media', file);
+        formData.append('type', 'post');
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/upload', true);
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            document.getElementById('uploadBar').style.width = percent + '%';
+            document.getElementById('uploadPct').textContent = percent + '%';
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            const res = JSON.parse(xhr.responseText);
+            pendingMediaUrl = res.url;
+            pendingMediaType = res.type;
+            document.getElementById('uploadPct').textContent = 'Attached';
+            document.getElementById('sendBtn').disabled = false;
+          } else {
+            showNotif('Upload failed');
+            cancelUpload();
+          }
+        };
+
+        xhr.onerror = () => {
+          showNotif('Upload failed');
+          cancelUpload();
+        };
+
+        xhr.send(formData);
+        e.target.value = '';
+      }
+
+      function cancelUpload() {
+        pendingMediaUrl = null;
+        pendingMediaType = null;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('uploadPreview').classList.remove('show');
+        document.getElementById('uploadBar').style.width = '0%';
+        document.getElementById('uploadPct').textContent = '0%';
+      }
+
+      function formatTime(ms) {
+        if (!ms) return '';
+        const now = Date.now();
+        const diff = now - ms;
+        if (diff < 60000) return 'Just now';
+        if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
+        if (diff < 86400000) return Math.floor(diff / 3600000) + 'h';
+        const d = new Date(ms);
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      }
+
+      function showNotif(msg, type = 'info') {
+        const n = document.getElementById('notif');
+        document.getElementById('notif-text').textContent = msg;
+        n.style.background = type === 'error' ? 'var(--terracotta)' : 'var(--earth2)';
+        n.classList.add('show');
+        setTimeout(() => n.classList.remove('show'), 2800);
+      }
+
+      // In-app confirm dialog — replaces browser confirm()
+      let _confirmCallback = null;
+      function showConfirm(message, onConfirm) {
+        _confirmCallback = onConfirm;
+        document.getElementById('confirmMsg').textContent = message;
+        document.getElementById('confirmModal').style.display = 'flex';
+      }
+      function confirmYes() {
+        document.getElementById('confirmModal').style.display = 'none';
+        if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
+      }
+      function confirmNo() {
+        document.getElementById('confirmModal').style.display = 'none';
+        _confirmCallback = null;
+      }
+
+      // --- FOLLOW SYSTEM ---
+      function toggleFollow() {
+        // Fix 3: Keep the full handle including '@' — DB stores handles WITH '@'
+        const handle = document.getElementById('profileViewHandle').textContent.trim();
+        const followBtn = document.getElementById('followBtn');
+        const isFollowing = followBtn.textContent === 'Unfollow';
+
+        // If a follow request was already sent, clicking cancels it
+        if (followBtn.textContent === 'Requested') {
+          fetch(`/api/unfollow/${encodeURIComponent(handle)}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+              if (data.success) {
+                followBtn.textContent = 'Follow';
+                followBtn.style.background = 'var(--green3)';
+              }
+            });
+          return;
+        }
+
+        const endpoint = isFollowing
+          ? `/api/unfollow/${encodeURIComponent(handle)}`
+          : `/api/follow/${encodeURIComponent(handle)}`;
+
+        fetch(endpoint, { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              if (data.status === 'requested') {
+                followBtn.textContent = 'Requested';
+                followBtn.style.background = 'var(--stone)';
+                showNotif('Follow request sent');
+              } else {
+                const nowFollowing = !isFollowing;
+                followBtn.textContent = nowFollowing ? 'Unfollow' : 'Follow';
+                followBtn.style.background = nowFollowing ? 'var(--stone)' : 'var(--green3)';
+
+                // Update the displayed follower count immediately
+                const followerEl = document.getElementById('profFollowers');
+                if (followerEl) {
+                  const current = parseInt(followerEl.textContent) || 0;
+                  followerEl.textContent = nowFollowing ? current + 1 : Math.max(0, current - 1);
+                }
+
+                // Refresh full profile data from server for accuracy
+                openProfile(handle, document.getElementById('profileViewName').textContent);
+              }
+            }
+          });
+      }
+
+      // --- MESSAGES SYSTEM ---
+      let currentChatTarget = null;
+      let oldestTimestamp = null;
+      let isLoadingMore = false;
+      let hasMoreMessages = true;
+
+      function openMessages() {
+        switchTab('messagesView');
+        fetchConversations();
+      }
+
+      function fetchConversations() {
+        fetch('/api/conversations')
+          .then(r => r.json())
+          .then(convs => {
+            const cl = document.getElementById('convList');
+            cl.innerHTML = '';
+            let totalUnread = 0;
+
+            if (convs.length === 0) {
+              cl.innerHTML = `
+              <div style="text-align:center; padding:48px; color:var(--stone); animation: slideIn 0.4s ease-out;">
+                <div style="font-size:48px; margin-bottom:16px;">🕊️</div>
+                <div style="font-size:18px; font-weight:600; color:var(--earth1);">No messages yet</div>
+                <div style="font-size:14px; margin-top:8px;">Visit a profile to start a conversation!</div>
+              </div>`;
+            } else {
+              convs.forEach(c => {
+                totalUnread += c.unread_count;
+                const item = document.createElement('div');
+                item.className = 'conv-item';
+                item.onclick = () => openChat(c.other_user.handle, c.other_user.name, c.other_user.photo, c.is_group, c.group_id);
+
+                let photoHtml = '';
+                if (c.is_group) {
+                  photoHtml = `<div class="mini-avatar" style="background:linear-gradient(135deg,var(--green3),var(--moss));color:white;">👥</div>`;
+                } else {
+                  photoHtml = c.other_user.photo ? `<img src="${c.other_user.photo}" class="mini-avatar" style="object-fit:cover;">` : `<div class="mini-avatar">${c.other_user.name[0].toUpperCase()}</div>`;
+                }
+                let unreadHtml = c.unread_count > 0 ? `<div class="unread-badge" style="position:static;">${c.unread_count}</div>` : '';
+
+                const d = new Date(c.timestamp);
+                const timeStr = d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
+
+                item.innerHTML = `
+                  ${photoHtml}
+                  <div class="conv-info">
+                      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                          <div class="conv-name">${c.other_user.name}</div>
+                          <div class="conv-meta">${timeStr}</div>
+                      </div>
+                      <div class="conv-preview">
+                          ${c.last_message}
+                      </div>
+                  </div>
+                  ${unreadHtml}
+              `;
+                cl.appendChild(item);
+              });
+            }
+
+            const badge = document.getElementById('navBadge');
+            const mobileBadge = document.getElementById('mobileChatBadge');
+            if (totalUnread > 0) {
+              if (badge) { badge.style.display = 'flex'; badge.textContent = totalUnread; }
+              if (mobileBadge) { mobileBadge.style.display = 'flex'; mobileBadge.textContent = totalUnread; }
+            } else {
+              if (badge) badge.style.display = 'none';
+              if (mobileBadge) mobileBadge.style.display = 'none';
+            }
+          });
+      }
+
+      let currentChatTargetIsGroup = false;
+
+      function openChat(handle, name, photoUrl, is_group = false, group_id = null) {
+        currentChatTarget = is_group ? group_id : handle;
+        currentChatTargetIsGroup = is_group;
+        switchTab('chatView');
+
+        // Reset typing indicator
+        const typingEl = document.getElementById('typingIndicator');
+        if (typingEl) typingEl.textContent = '';
+
+        if (is_group) {
+          document.getElementById('chatName').innerHTML = `${name} <span onclick="openEditGroupModal('${group_id}')" style="font-size:14px;color:var(--stone);cursor:pointer;margin-left:8px;font-weight:normal;">⚙️ Edit</span>`;
+        } else {
+          document.getElementById('chatName').textContent = name;
+        }
+
+        const chatAvatar = document.getElementById('chatAvatar');
+        const chatAvatarText = document.getElementById('chatAvatarText');
+        if (chatAvatar && chatAvatarText) {
+          if (is_group) {
+            chatAvatar.style.display = 'none';
+            chatAvatarText.innerHTML = '👥';
+            chatAvatarText.style.display = 'flex';
+            chatAvatarText.style.background = 'linear-gradient(135deg,var(--green3),var(--moss))';
+            chatAvatarText.style.color = 'white';
+          } else if (photoUrl) {
+            chatAvatar.src = photoUrl;
+            chatAvatar.style.display = 'block';
+            chatAvatarText.style.display = 'none';
+          } else {
+            chatAvatar.style.display = 'none';
+            chatAvatarText.textContent = (name || '?')[0].toUpperCase();
+            chatAvatarText.style.display = 'flex';
+            chatAvatarText.style.background = 'var(--ig-grad)';
+          }
+        }
+
+        // Reset pagination
+        oldestTimestamp = null;
+        isLoadingMore = false;
+        hasMoreMessages = true;
+
+        // Mark as read immediately and clear badge right away
+        if (!is_group) {
+          socket.emit('mark_read', { target_handle: currentChatTarget });
+          // Clear badge immediately without waiting for fetchConversations
+          const badge = document.getElementById('navBadge');
+          const mobileBadge = document.getElementById('mobileChatBadge');
+          if (badge && parseInt(badge.textContent) > 0) {
+            const newCount = Math.max(0, parseInt(badge.textContent) - 1);
+            if (newCount === 0) { badge.style.display = 'none'; if(mobileBadge) mobileBadge.style.display='none'; }
+            else { badge.textContent = newCount; if(mobileBadge) mobileBadge.textContent = newCount; }
+          }
+        }
+
+        fetchMessages(currentChatTarget, is_group);
+      }
+
+      function setupChatScroll() {
+        const area = document.getElementById('chatMessages');
+        if (!area) return;
+        area.onscroll = () => {
+          if (area.scrollTop === 0 && !isLoadingMore && hasMoreMessages && currentChatTarget) {
+            fetchMessages(currentChatTarget, currentChatTargetIsGroup, true);
+          }
+        };
+      }
+
+      function fetchMessages(target, is_group, loadMore = false) {
+        if (isLoadingMore) return;
+        if (loadMore && !hasMoreMessages) return;
+        
+        isLoadingMore = true;
+        const endpoint = is_group 
+          ? `/api/group_messages/${target}?limit=30${oldestTimestamp ? '&before=' + oldestTimestamp : ''}` 
+          : `/api/messages/${target}?limit=30${oldestTimestamp ? '&before=' + oldestTimestamp : ''}`;
+          
+        fetch(endpoint)
+          .then(r => r.json())
+          .then(msgs => {
+            const area = document.getElementById('chatMessages');
+            const oldHeight = area.scrollHeight;
+            
+            if (!loadMore) area.innerHTML = '';
+            
+            if (msgs.length < 30) hasMoreMessages = false;
+            
+            if (msgs.length > 0) {
+              if (loadMore) {
+                // Prepend messages
+                msgs.reverse().forEach(m => {
+                  const msgEl = appendChatMessage(m, is_group, true);
+                  area.insertBefore(msgEl, area.firstChild);
+                });
+                // Maintain scroll position
+                area.scrollTop = area.scrollHeight - oldHeight;
+              } else {
+                msgs.forEach(m => appendChatMessage(m, is_group));
+                area.scrollTop = area.scrollHeight;
+              }
+              oldestTimestamp = msgs[0].timestamp;
+            }
+            
+            isLoadingMore = false;
+            // Only refresh conversation list on initial load, not on pagination
+            if (!loadMore) {
+              fetchConversations();
+            }
+          })
+          .catch(() => {
+            isLoadingMore = false;
+          });
+      }
+
+      function appendChatMessage(m, is_group, returnOnly = false) {
+        const area = document.getElementById('chatMessages');
+        const wrap = document.createElement('div');
+        wrap.style.display = 'flex';
+        wrap.style.flexDirection = 'column';
+        wrap.style.alignItems = m.is_me ? 'flex-end' : 'flex-start';
+        wrap.style.margin = '4px 0';
+
+        if (is_group && !m.is_me) {
+          const senderLabel = document.createElement('div');
+          senderLabel.style.cssText = 'font-size:12px; color:var(--stone); margin-bottom:2px; margin-left:12px;';
+          senderLabel.textContent = m.sender_name;
+          wrap.appendChild(senderLabel);
+        }
+
+        const b = document.createElement('div');
+        b.className = `chat-bubble ${m.is_me ? 'me' : 'them'}`;
+        
+        const textSpan = document.createElement('span');
+        textSpan.textContent = m.text;
+        b.appendChild(textSpan);
+        
+        if (m.is_me && !is_group) {
+          const tick = document.createElement('span');
+          tick.className = 'message-tick';
+          tick.style.cssText = 'font-size:11px; opacity:0.7; margin-left:6px; vertical-align: bottom;';
+          tick.textContent = m.read ? '✓✓' : '✓';
+          tick.id = `tick-${m.id || Math.random().toString(36).substr(2, 9)}`;
+          b.appendChild(tick);
+        }
+        wrap.appendChild(b);
+        if (returnOnly) return wrap;
+        area.appendChild(wrap);
+      }
+
+      // Typing indicator
+      let typingTimer = null;
+      function handleTypingInput() {
+        if (!currentChatTarget) return;
+        socket.emit('typing', { target_handle: currentChatTarget, is_typing: true });
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+          socket.emit('typing', { target_handle: currentChatTarget, is_typing: false });
+        }, 2000);
+      }
+
+      socket.on('user_typing', (data) => {
+        if (currentChatTarget && (data.sender_handle === currentChatTarget || data.group_id === currentChatTarget)) {
+          const el = document.getElementById('typingIndicator');
+          if (!el) return;
+          if (data.is_typing) {
+            el.textContent = `${data.sender_name} is typing...`;
+          } else {
+            el.textContent = '';
+          }
+        }
+      });
+
+      socket.on('messages_read', (data) => {
+        if (currentChatTarget && data.reader_handle === currentChatTarget) {
+          // Update all single ticks to double ticks
+          document.querySelectorAll('.message-tick').forEach(t => {
+            if (t.textContent === '✓') t.textContent = '✓✓';
+          });
+        }
+      });
+
+      let lastMessageTime = 0;
+      function sendDM() {
+        const now = Date.now();
+        if (now - lastMessageTime < 500) { showNotif('Sending too fast...'); return; }
+
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text || !currentChatTarget) return;
+
+        lastMessageTime = now;
+        input.value = '';
+
+        // Optimistically show the message immediately
+        appendChatMessage({ text: text, is_me: true, read: false }, currentChatTargetIsGroup);
+        const area = document.getElementById('chatMessages');
+        if (area) area.scrollTop = area.scrollHeight;
+
+        if (currentChatTargetIsGroup) {
+          socket.emit('send_group_message', { group_id: currentChatTarget, text: text });
+        } else {
+          socket.emit('send_message', { target_handle: currentChatTarget, text: text });
+        }
+      }
+
+      function startChat() {
+        const handle = document.getElementById('profileViewHandle').textContent.trim();
+        const name = document.getElementById('profileViewName').textContent;
+        openChat(handle, name, null); // Will fallback to initials if photo unknown
+      }
+
+      // Socket handler for DMs
+      socket.on('receive_message', function (msg) {
+        const isMe = (msg.sender_id === currentUser.id) || (msg.sender_handle === currentUser.handle);
+        // Normalize handles: strip @ for comparison
+        const myTarget = (currentChatTarget || '').replace(/^@/, '');
+        const msgSender = (msg.sender_handle || '').replace(/^@/, '');
+        const msgTarget = (msg.target_handle || '').replace(/^@/, '');
+        const inThisChat = !currentChatTargetIsGroup && currentChatTarget &&
+          ((isMe && msgTarget === myTarget) || (!isMe && msgSender === myTarget));
+
+        if (inThisChat) {
+          // Only append received messages — sender already sees their own via optimistic UI
+          if (!isMe) {
+            appendChatMessage({ id: msg.id, text: msg.text, is_me: false }, false);
+            const area = document.getElementById('chatMessages');
+            if (area) area.scrollTop = area.scrollHeight;
+            socket.emit('mark_read', { target_handle: msg.sender_handle });
+          }
+        } else {
+          fetchConversations();
+          if (!isMe) {
+            showNotif(`💬 New message from ${msg.sender_name}`);
+            // Only show badge when NOT on messages/chat tab
+            if (currentTab !== 'messagesView' && currentTab !== 'chatView') {
+              const badge = document.getElementById('navBadge');
+              const mobileBadge = document.getElementById('mobileChatBadge');
+              if (badge) {
+                const count = parseInt(badge.textContent || '0') + 1;
+                badge.textContent = count;
+                badge.style.display = 'flex';
+              }
+              if (mobileBadge) {
+                const count = parseInt(mobileBadge.textContent || '0') + 1;
+                mobileBadge.textContent = count;
+                mobileBadge.style.display = 'flex';
+              }
+            }
+          }
+        }
+      });
+
+      socket.on('receive_group_message', function (msg) {
+        const isMe = (msg.sender_id === currentUser.id) || (msg.sender_handle === currentUser.handle);
+        if (currentChatTargetIsGroup && currentChatTarget === msg.group_id) {
+          appendChatMessage({ id: msg.id, text: msg.text, is_me: isMe, sender_name: msg.sender_name }, true);
+          const area = document.getElementById('chatMessages');
+          if (area) area.scrollTop = area.scrollHeight;
+        } else {
+          fetchConversations();
+          if (!isMe) showNotif(`New group message`);
+        }
+      });
+
+      socket.on('group_added', function () {
+        fetchConversations();
+      });
+
+      socket.on('message_error', function (err) {
+        showNotif(err.error);
+      });
+
+      // --- NOTIFICATIONS SYSTEM ---
+      let unreadNotifs = 0;
+
+      function openNotifications() {
+        switchTab('notificationsView');
+        fetchNotifications();
+        if (document.getElementById('notifBadge')) document.getElementById('notifBadge').style.display = 'none';
+        if (document.getElementById('mobileNotifBadge')) document.getElementById('mobileNotifBadge').style.display = 'none';
+        unreadNotifs = 0;
+
+        // Mark as read on server
+        fetch('/api/notifications/read', { method: 'POST' });
+      }
+
+      function fetchNotifications() {
+        fetch('/api/notifications')
+          .then(r => r.json())
+          .then(notifs => {
+            const nl = document.getElementById('notifList');
+            nl.innerHTML = '';
+
+            if (notifs.length === 0) {
+              nl.innerHTML = `
+              <div style="text-align:center; padding:64px 24px; color:var(--text-dim); animation: slideIn 0.4s ease-out;">
+                <div style="font-size:56px; margin-bottom:20px; filter: drop-shadow(0 0 10px var(--accent-glow));">🪹</div>
+                <div style="font-size:20px; font-weight:700; color:var(--text-main);">All caught up!</div>
+                <div style="font-size:14px; margin-top:10px; opacity:0.7;">You have no new notifications.</div>
+              </div>`;
+            } else {
+              notifs.forEach(n => {
+                const item = document.createElement('div');
+                item.className = 'conv-item';
+                if (!n.is_read) item.style.background = 'rgba(61, 255, 140, 0.04)';
+
+                let photoHtml = n.sender_photo ? `<img src="${n.sender_photo}" class="mini-avatar" style="object-fit:cover;">` : (n.sender_name ? `<div class="mini-avatar">${n.sender_name[0].toUpperCase()}</div>` : `<div class="mini-avatar">?</div>`);
+
+                let actionsHtml = '';
+                if (n.type === 'follow_request') {
+                  actionsHtml = `
+                      <div style="display:flex; gap:8px; margin-top:8px;">
+                          <button class="btn-primary" style="padding:6px 12px; font-size:13px; border-radius:16px;" onclick="acceptFollow('${n.sender_handle}', event)">Accept</button>
+                          <button style="padding:6px 12px; font-size:13px; border-radius:16px; background:var(--stone); color:white; border:none; cursor:pointer;" onclick="declineFollow('${n.sender_handle}', event)">Decline</button>
+                      </div>
+                  `;
+                }
+
+                item.innerHTML = `
+                  ${photoHtml}
+                  <div class="conv-info">
+                      <div class="conv-name" style="color:var(--text-main); font-size:14px; font-weight:400;">
+                        <strong style="color:var(--accent); cursor:pointer;">${n.sender_name || 'System'}</strong> ${n.text || n.content}
+                      </div>
+                      <div class="conv-meta" style="text-align:left; margin-top:2px; opacity:0.6;">${formatTime(n.timestamp)}</div>
+                      ${actionsHtml}
+                  </div>
+              `;
+                if (n.sender_handle) {
+                  item.onclick = (e) => {
+                    if (e.target.tagName !== 'BUTTON') {
+                      openProfile(n.sender_handle, n.sender_name);
+                    }
+                  };
+                }
+                nl.appendChild(item);
+              });
+            }
+          });
+      }
+
+      function acceptFollow(handle, e) {
+        if (e) e.stopPropagation();
+        fetch(`/api/follow/accept/${handle}`, { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) fetchNotifications();
+          });
+      }
+
+      function declineFollow(handle, e) {
+        if (e) e.stopPropagation();
+        fetch(`/api/follow/decline/${handle}`, { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) fetchNotifications();
+          });
+      }
+
+      socket.on('receive_notification', function (n) {
+        unreadNotifs++;
+        const badge = document.getElementById('notifBadge');
+        const mobileBadge = document.getElementById('mobileNotifBadge');
+        if (badge) { badge.textContent = unreadNotifs; badge.style.display = 'flex'; }
+        if (mobileBadge) { mobileBadge.textContent = unreadNotifs; mobileBadge.style.display = 'flex'; }
+
+        showNotif(n.content);
+
+        if (document.getElementById('notificationsView').style.display === 'flex') {
+          fetchNotifications();
+        }
+      });
+
+      // Update Profile Open to check follow status and cover photo
+      const originalOpenProfile = openProfile;
+      openProfile = function (handle, name) {
+        originalOpenProfile(handle, name); // Does the UI stuff and fetches posts
+
+        // Reset cover each time
+        const coverImg = document.getElementById('profileCoverImg');
+        const coverBtn = document.getElementById('coverUploadBtn');
+        const editBtn = document.getElementById('editProfBtn');
+        coverImg.style.display = 'none';
+        coverImg.src = '';
+        if (coverBtn) coverBtn.style.display = 'none';
+        if (editBtn) editBtn.style.display = 'none';
+
+        if (currentUser) {
+          fetch(`/api/user/${handle}`, { cache: 'no-store' })
+            .then(r => r.json())
+            .then(u => {
+              document.getElementById('profFollowers').textContent = u.followers_count;
+              document.getElementById('profFollowing').textContent = u.following_count;
+
+              // Cover photo
+              const pCoverWrap = document.getElementById('profileCoverWrap');
+              if (u.cover) {
+                coverImg.src = u.cover;
+                coverImg.style.display = 'block';
+                if (pCoverWrap) pCoverWrap.style.display = 'block';
+              } else {
+                if (pCoverWrap) pCoverWrap.style.display = 'none';
+              }
+
+              // Avatar DP Fix
+              const pAvatar = document.getElementById('profileViewAvatar');
+              const pAvatarText = document.getElementById('profileViewAvatarText');
+              if (u.photo) {
+                pAvatar.src = u.photo;
+                pAvatar.style.display = 'block';
+                pAvatarText.style.display = 'none';
+              } else {
+                pAvatar.style.display = 'none';
+                pAvatarText.textContent = (u.name || handle).charAt(0).toUpperCase();
+                pAvatarText.style.display = 'flex';
+              }
+
+              const fbtn = document.getElementById('followBtn');
+              const mbtn = document.getElementById('messageBtn');
+
+              if (!u.is_self) {
+                fbtn.style.display = 'block';
+                if (u.is_requested) {
+                  fbtn.textContent = 'Requested';
+                  fbtn.style.setProperty('background-color', '#4A5D4E', 'important');
+                  fbtn.style.setProperty('color', '#FFFFFF', 'important');
+                } else {
+                  fbtn.textContent = u.is_following ? 'Unfollow' : 'Follow';
+                  fbtn.style.setProperty('background-color', (u.is_following ? '#4A5D4E' : '#3DFF8C'), 'important');
+                  fbtn.style.setProperty('color', (u.is_following ? '#FFFFFF' : '#0A0D0B'), 'important');
+                }
+
+                if (u.is_mutual) {
+                  mbtn.style.display = 'block';
+                  mbtn.style.setProperty('color', '#3DFF8C', 'important');
+                  mbtn.style.setProperty('border', '2px solid #3DFF8C', 'important');
+                  mbtn.style.setProperty('background', 'transparent', 'important');
+                } else {
+                  mbtn.style.display = 'none';
+                }
+              } else {
+                fbtn.style.display = 'none';
+                mbtn.style.display = 'none';
+                if (editBtn) editBtn.style.display = 'block';
+                if (coverBtn) coverBtn.style.display = 'block';
+              }
+            });
+        }
+      }
+
+      // Check unread badge on load
+      if (currentUser) {
+        socket.emit('join_chat', {});
+        fetchConversations();
+        setupChatScroll();
+      }
+
+      // --- COVER PHOTO UPLOAD ---
+      function uploadCoverPhoto(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        showNotif('Uploading cover photo...');
+
+        const formData = new FormData();
+        formData.append('media', file);
+        formData.append('type', 'cover');
+
+        fetch('/upload', { method: 'POST', body: formData })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) { showNotif('Upload failed: ' + data.error); return; }
+            const coverImg = document.getElementById('profileCoverImg');
+            coverImg.src = data.url;
+            coverImg.style.display = 'block';
+            showNotif('Cover photo updated! 🌄');
+            if (currentUser) currentUser.cover = data.url;
+          })
+          .catch(() => showNotif('Cover upload failed'));
+        e.target.value = '';
+      }
+
+      // --- EXPLORE FUNCTIONS ---
+      let currentExploreNode = 'All';
+
+      function setExploreNode(node) {
+        currentExploreNode = node;
+        document.querySelectorAll('.node-pill').forEach(p => {
+          p.classList.toggle('active', p.dataset.node === node);
+        });
+        filterExplorePosts();
+      }
+
+      // ── DYNAMIC SIDEBAR ──────────────────────────────────────────────
+      async function loadSidebar() {
+        try {
+          // Load trending topics
+          const tRes = await fetch('/api/trending');
+          const trends = await tRes.json();
+          const tList = document.getElementById('trendingList');
+          if (tList) {
+            if (trends.length === 0) {
+              tList.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:8px 0;">Post something to start trends! 🌱</div>';
+            } else {
+              tList.innerHTML = trends.map(t => `
+                <div class="trend-item" onclick="switchTab('explore'); document.getElementById('exploreSearch').value='${t.name}'; filterExplorePosts();" style="cursor:pointer;">
+                  <div class="trend-category">${t.category}</div>
+                  <div class="trend-name">${t.name}</div>
+                  <div class="trend-count">${t.count} post${t.count !== 1 ? 's' : ''}</div>
+                </div>`).join('');
+            }
+          }
+        } catch (e) { console.warn('Trending load failed', e); }
+
+        try {
+          // Load who to follow
+          const wRes = await fetch('/api/who_to_follow');
+          const users = await wRes.json();
+          const wList = document.getElementById('whoToFollowList');
+          if (wList) {
+            if (users.length === 0) {
+              wList.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:8px 0;">You follow everyone! 🎉</div>';
+            } else {
+              wList.innerHTML = users.map(u => `
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                  ${u.photo
+                  ? `<img src="${u.photo}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="mini-avatar" style="display:none;">${u.name[0].toUpperCase()}</div>`
+                  : `<div class="mini-avatar">${u.name[0].toUpperCase()}</div>`}
+                  <div style="flex:1;min-width:0;cursor:pointer;" onclick="openProfile('${u.handle}','${u.name.replace(/'/g, "\\'")}')">
+                    <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u.name}</div>
+                    <div style="color:var(--text-dim);font-size:12px;">${u.handle} · ${u.followers} follower${u.followers !== 1 ? 's' : ''}</div>
+                  </div>
+                  <button class="btn-primary" style="padding:4px 12px;font-size:12px;border-radius:6px;flex-shrink:0;"
+                    onclick="followFromSidebar('${u.handle}', this)">Follow</button>
+                </div>`).join('');
+            }
+          }
+        } catch (e) { console.warn('Who to follow load failed', e); }
+      }
+
+      async function followFromSidebar(handle, btn) {
+        btn.disabled = true;
+        btn.textContent = '...';
+        try {
+          await fetch(`/api/follow/${encodeURIComponent(handle)}`, { method: 'POST' });
+          btn.textContent = 'Following ✓';
+          btn.style.background = 'var(--surface-bright)';
+          btn.style.opacity = '0.6';
+        } catch (e) {
+          btn.textContent = 'Follow';
+          btn.disabled = false;
+        }
+      }
+
+      // Load sidebar after socket join
+      if (currentUser) setTimeout(loadSidebar, 1500);
+
+      function filterExplorePosts() {
+        const search = (document.getElementById('exploreSearch')?.value || '').toLowerCase();
+        const area = document.getElementById('explorePostsArea');
+        if (!area) return;
+        area.innerHTML = '';
+
+        const filtered = ALL_POSTS.filter(p => {
+          const matchNode = currentExploreNode === 'All' || p.node === currentExploreNode;
+          const matchSearch = !search ||
+            (p.text && p.text.toLowerCase().includes(search)) ||
+            (p.sender && p.sender.toLowerCase().includes(search)) ||
+            (p.handle && p.handle.toLowerCase().includes(search));
+          return matchNode && matchSearch;
+        });
+
+        if (filtered.length === 0) {
+          area.innerHTML = `<div style="text-align:center; padding:48px; color:var(--stone);">
+          <div style="font-size:48px; margin-bottom:16px;">🌿</div>
+          <div style="font-size:18px; font-weight:600; color:var(--earth1);">No posts found</div>
+          <div style="font-size:14px; margin-top:8px;">Try a different node or keyword.</div>
+        </div>`;
+          return;
+        }
+        filtered.forEach(p => addPostToFeed(p, false, 'explorePostsArea'));
+      }
+
+      // --- AI CHAT FUNCTIONS ---
+      let aiHistory = [];
+
+      async function sendAIMessage() {
+        const input = document.getElementById('aiInput');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+
+        appendAIMessage(text, 'user');
+        aiHistory.push({ role: 'user', content: text });
+
+        // Typing indicator
+        const typingId = 'ai-typing-' + Date.now();
+        const typingDiv = document.createElement('div');
+        typingDiv.id = typingId;
+        typingDiv.style.cssText = 'display:flex; gap:12px; align-items:flex-start;';
+        typingDiv.innerHTML = `
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green3),var(--moss));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🌿</div>
+        <div class="chat-bubble them" style="border-radius:16px 16px 16px 4px;font-style:italic;opacity:0.6;">Thinking...</div>`;
+        document.getElementById('aiMessages').appendChild(typingDiv);
+        document.getElementById('aiMessages').scrollTop = 99999;
+
+        try {
+          const res = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, history: aiHistory.slice(0, -1) })
+          });
+          const data = await res.json();
+          document.getElementById(typingId)?.remove();
+          const reply = data.reply || 'Sorry, something went wrong.';
+          appendAIMessage(reply, 'ai');
+          aiHistory.push({ role: 'model', content: reply });
+        } catch (e) {
+          document.getElementById(typingId)?.remove();
+          appendAIMessage('Connection error. Please try again.', 'ai');
+        }
+      }
+
+      function appendAIMessage(text, role) {
+        const area = document.getElementById('aiMessages');
+        const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+        const wrap = document.createElement('div');
+        if (role === 'user') {
+          wrap.style.cssText = 'display:flex; justify-content:flex-end;';
+          wrap.innerHTML = `<div class="chat-bubble me" style="border-radius:16px 16px 4px 16px; max-width:80%;">${safe}</div>`;
+        } else {
+          wrap.style.cssText = 'display:flex; gap:12px; align-items:flex-start;';
+          wrap.innerHTML = `
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green3),var(--moss));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🌿</div>
+          <div class="chat-bubble them" style="border-radius:16px 16px 16px 4px; max-width:80%; white-space:pre-wrap;">${safe}</div>`;
+        }
+        area.appendChild(wrap);
+        area.scrollTop = 99999;
+      }
+    </script>
+
+    <!-- EDIT POST MODAL -->
+    <div id="editPostModal" onclick="if(event.target===this) closeEditModal()">
+      <div class="edit-modal-card">
+        <h2 style="font-family:'Playfair Display',serif; font-size:22px; color:var(--earth1); margin-bottom:20px;">Edit
+          Post</h2>
+        <textarea id="editPostText"
+          style="width:100%; min-height:120px; font-size:17px; font-family:inherit; color:var(--earth1); border:1px solid rgba(139,94,60,0.2); border-radius:16px; padding:16px; outline:none; resize:vertical; background:rgba(139,94,60,0.03); line-height:1.5;"
+          placeholder="What's on your mind?"
+          onkeydown="if(event.ctrlKey&&event.key==='Enter') submitEditPost()"></textarea>
+        <div style="font-size:12px; color:var(--stone); margin-top:6px;">Ctrl+Enter to save</div>
+        <div style="display:flex; gap:12px; margin-top:20px; justify-content:flex-end;">
+          <button onclick="closeEditModal()"
+            style="padding:10px 24px; border-radius:20px; border:1px solid rgba(139,94,60,0.2); background:none; cursor:pointer; font-family:inherit; font-size:15px; color:var(--stone);">Cancel</button>
+          <button class="btn-primary" onclick="submitEditPost()" style="padding:10px 28px;">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIRM MODAL (replaces browser confirm()) -->
+    <div id="confirmModal" onclick="if(event.target===this) confirmNo()"
+      style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:400; align-items:center; justify-content:center;">
+      <div
+        style="background:#fff; border-radius:24px; padding:32px; width:min(380px,88vw); box-shadow:0 24px 64px rgba(0,0,0,0.18); animation:floatUp 0.2s ease-out; text-align:center;">
+        <div style="font-size:36px; margin-bottom:12px;">🌿</div>
+        <div id="confirmMsg"
+          style="font-size:17px; font-weight:600; color:var(--earth1); margin-bottom:8px; line-height:1.4;"></div>
+        <div style="font-size:14px; color:var(--stone); margin-bottom:24px;">This action cannot be undone.</div>
+        <div style="display:flex; gap:12px; justify-content:center;">
+          <button onclick="confirmNo()"
+            style="padding:10px 28px; border-radius:20px; border:1px solid rgba(139,94,60,0.2); background:none; cursor:pointer; font-family:inherit; font-size:15px; color:var(--stone); font-weight:500;">Cancel</button>
+          <button onclick="confirmYes()"
+            style="padding:10px 28px; border-radius:20px; background:var(--terracotta); color:#fff; border:none; cursor:pointer; font-family:inherit; font-size:15px; font-weight:600;">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="groupModal" onclick="if(event.target===this) closeGroupModal()">
+      <div class="group-modal-card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+          <div>
+            <h2 id="groupModalTitle" style="margin:0; font-size:22px; font-weight:700; color:var(--earth1);">Create
+              Group</h2>
+            <div id="groupModalSub" style="font-size:14px; color:var(--stone); margin-top:4px;">Gather your community.
+            </div>
+          </div>
+          <div onclick="closeGroupModal()"
+            style="cursor:pointer; color:var(--stone); font-size:20px; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(139,94,60,0.05);">
+            ✕</div>
+        </div>
+
+        <input type="hidden" id="editGroupId" value="">
+
+        <div style="margin-bottom:20px;">
+          <label
+            style="display:block; font-size:13px; font-weight:700; color:var(--stone); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Group
+            Name</label>
+          <input type="text" id="groupNameInput" placeholder="e.g. Hiking Enthusiasts 🌲" class="text-input"
+            style="background:rgba(139,94,60,0.03);" autofocus>
+        </div>
+
+        <div style="margin-bottom:28px;">
+          <label
+            style="display:block; font-size:13px; font-weight:700; color:var(--stone); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Select
+            Members</label>
+          <div id="groupMembersList" class="member-list-container">
+            <!-- list of people -->
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; justify-content:space-between; align-items:center;">
+          <button id="deleteGroupBtn"
+            style="display:none; padding:10px 16px; color:var(--terracotta); background:none; border:none; cursor:pointer; font-size:14px; font-weight:600;"
+            onclick="deleteGroup()">Delete Group</button>
+          <div style="display:flex; gap:12px; margin-left:auto;">
+            <button onclick="closeGroupModal()"
+              style="padding:10px 24px; border-radius:20px; border:1px solid rgba(139,94,60,0.2); background:none; cursor:pointer; font-family:inherit; font-size:15px; color:var(--stone); font-weight:500;">Cancel</button>
+            <button class="btn-primary" onclick="saveGroup(event, this)" style="padding:10px 28px;">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function openCreateGroupModal() {
+        document.getElementById('groupModalTitle').textContent = 'Create Group';
+        document.getElementById('groupModalSub').textContent = 'Gather your community.';
+        document.getElementById('editGroupId').value = '';
+        document.getElementById('groupNameInput').value = '';
+        document.getElementById('deleteGroupBtn').style.display = 'none';
+        document.getElementById('groupModal').style.display = 'flex';
+
+        fetch('/api/following')
+          .then(r => r.json())
+          .then(following => populateGroupMembers(following, []))
+          .catch(() => showNotif('Could not load contacts'));
+      }
+
+      function openEditGroupModal(groupId) {
+        document.getElementById('groupModalTitle').textContent = 'Edit Group';
+        document.getElementById('groupModalSub').textContent = 'Manage members and name.';
+        document.getElementById('editGroupId').value = groupId;
+        document.getElementById('groupModal').style.display = 'flex';
+
+        fetch('/api/groups/' + groupId + '/members').then(r => r.json()).then(data => {
+          if (data.error) { showNotif(data.error); closeGroupModal(); return; }
+
+          document.getElementById('groupNameInput').value = data.name || '';
+
+          // Show delete button only if current user is admin
+          if (String(data.admin_id) === String(currentUser.id)) {
+            document.getElementById('deleteGroupBtn').style.display = 'block';
+          } else {
+            document.getElementById('deleteGroupBtn').style.display = 'none';
+          }
+
+          const selectedHandles = data.members.map(m => m.handle);
+          populateGroupMembers(data.following, selectedHandles);
+        });
+      }
+
+      function populateGroupMembers(following, selectedHandles) {
+        const list = document.getElementById('groupMembersList');
+        list.innerHTML = '';
+        if (following.length === 0) {
+          list.innerHTML = '<div style="padding:20px; color:var(--stone); font-size:14px; text-align:center;">You are not following anyone yet.</div>';
+          return;
+        }
+
+        following.forEach(u => {
+          const item = document.createElement('label');
+          item.className = 'group-member-item';
+
+          const isChecked = selectedHandles.includes(u.handle);
+          item.innerHTML = `
+          <input type="checkbox" value="${u.handle}" class="group-member-cb" ${isChecked ? 'checked' : ''}>
+          <div style="flex:1;">
+            <div style="font-size:15px; font-weight:600; color:var(--earth1);">${u.name}</div>
+            <div style="font-size:13px; color:var(--stone);">${u.handle}</div>
+          </div>
+        `;
+          list.appendChild(item);
+        });
+      }
+
+      function deleteGroup() {
+        const groupId = document.getElementById('editGroupId').value;
+        if (!groupId) return;
+
+        showConfirm('Delete this group permanently?', () => {
+          fetch('/api/groups/' + groupId, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => {
+              if (data.success) {
+                showNotif('Group deleted');
+                closeGroupModal();
+                switchTab('messagesView');
+                fetchConversations();
+              } else {
+                showNotif(data.error || 'Delete failed');
+              }
+            });
+        });
+      }
+
+      function closeGroupModal() {
+        document.getElementById('groupModal').style.display = 'none';
+      }
+
+      function saveGroup(e, btnEl) {
+        const name = document.getElementById('groupNameInput').value.trim();
+        const groupId = document.getElementById('editGroupId').value;
+        if (!name) { showNotif('Group name required'); return; }
+
+        const cbs = document.querySelectorAll('.group-member-cb:checked');
+        const handles = Array.from(cbs).map(c => c.value);
+
+        const btn = btnEl || document.querySelector('#groupModal .btn-primary');
+        const oldText = btn.textContent;
+        btn.textContent = 'Saving...';
+        btn.disabled = true;
+
+        if (groupId) {
+          // Edit
+          fetch('/api/groups/' + groupId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, member_handles: handles })
+          }).then(r => r.json()).then(d => {
+            btn.textContent = oldText;
+            btn.disabled = false;
+            if (d.success) {
+              showNotif('Group updated');
+              closeGroupModal();
+              openChat(currentChatTarget, name, null, true, groupId); // refresh
+            } else {
+              showNotif(d.error || 'Update failed');
+            }
+          }).catch(() => {
+            btn.textContent = oldText;
+            btn.disabled = false;
+          });
+        } else {
+          // Create
+          fetch('/api/groups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, member_handles: handles })
+          }).then(r => r.json()).then(d => {
+            btn.textContent = oldText;
+            btn.disabled = false;
+            if (d.success) {
+              showNotif('Group created! 🌿');
+              closeGroupModal();
+              fetchConversations();
+              openChat('group_' + d.group_id, name, null, true, d.group_id);
+            } else {
+              showNotif(d.error || 'Creation failed');
+            }
+          }).catch(() => {
+            btn.textContent = oldText;
+            btn.disabled = false;
+          });
+        }
+      }
+
+      function openComposer() {
+        switchTab('feedView');
+        switchFeedTab('ForYou');
+        // Scroll to top of posts area
+        const postsArea = document.getElementById('postsArea');
+        if (postsArea) postsArea.scrollTop = 0;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        setTimeout(() => {
+          const input = document.getElementById('msgInput');
+          if (input) {
+            input.focus();
+            const composer = document.getElementById('feedComposer');
+            if (composer) {
+              composer.style.boxShadow = '0 0 20px var(--accent-glow)';
+              setTimeout(() => { composer.style.boxShadow = ''; }, 1500);
+            }
+          }
+        }, 150);
+      }
+    </script>
+
+
+
+    <!-- CREATE STORY MODAL -->
+    <div id="createStoryModal" onclick="if(event.target===this) closeCreateStory()">
+
+      <div style="background:#1c1c1c; border:1px solid rgba(255,255,255,.12);
+              border-radius:24px; padding:28px; width:90%; max-width:420px;
+              animation:floatUp 0.2s ease-out; position:relative;">
+
+        <!-- Title row -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+          <h2 style="margin:0; font-size:20px; font-weight:700; color:#f5f5f5;">Create Story</h2>
+          <button onclick="closeCreateStory()" style="background:rgba(255,255,255,.08); border:none; color:#a8a8a8; font-size:20px;
+               width:32px; height:32px; border-radius:50%; cursor:pointer; display:flex;
+               align-items:center; justify-content:center; transition:background .15s;"
+            onmouseover="this.style.background='rgba(255,255,255,.15)'"
+            onmouseout="this.style.background='rgba(255,255,255,.08)'">×</button>
+        </div>
+
+        <!-- Caption textarea -->
+        <textarea id="storyTextInput" placeholder="Write a caption..." oninput="autoResize(this)" style="width:100%; min-height:80px; background:rgba(255,255,255,.05);
+             border:1px solid rgba(255,255,255,.12); border-radius:14px;
+             padding:14px; color:#f5f5f5; font-size:15px; font-family:inherit;
+             resize:none; outline:none; margin-bottom:14px; transition:border-color .15s;"
+          onfocus="this.style.borderColor='rgba(255,255,255,.3)'"
+          onblur="this.style.borderColor='rgba(255,255,255,.12)'"></textarea>
+
+        <!-- Media preview box -->
+        <div id="storyPreviewArea" style="display:none; width:100%; height:210px; background:rgba(0,0,0,.4);
+             border-radius:14px; margin-bottom:14px; position:relative;
+             overflow:hidden; align-items:center; justify-content:center;">
+          <img id="storyPreviewImg" style="max-width:100%; max-height:100%; object-fit:contain; display:none;">
+          <video id="storyPreviewVid" controls
+            style="max-width:100%; max-height:100%; object-fit:contain; display:none;"></video>
+          <button onclick="clearStoryMedia()" style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,.65);
+               color:#fff; border:none; border-radius:50%; width:28px; height:28px;
+               cursor:pointer; font-size:15px; display:flex; align-items:center;
+               justify-content:center;">×</button>
+        </div>
+
+        <!-- Upload progress -->
+        <div id="storyUploadProgress" style="display:none; margin-bottom:14px;">
+          <div style="font-size:13px; color:#a8a8a8; margin-bottom:6px;" id="storyUploadLabel">Uploading…</div>
+          <div style="background:rgba(255,255,255,.12); border-radius:4px; height:4px; overflow:hidden;">
+            <div id="storyUploadBar" style="height:100%; width:0%; background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);
+                 border-radius:4px; transition:width .2s;"></div>
+          </div>
+        </div>
+
+        <!-- Buttons row -->
+        <div style="display:flex; gap:10px; align-items:center;">
+          <!-- Photo/video picker (entire label is clickable) -->
+          <label for="storyMediaInput" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
+                    padding:11px 14px; border-radius:12px; border:1.5px solid rgba(255,255,255,.15);
+                    color:#a8a8a8; font-size:14px; font-weight:500; cursor:pointer;
+                    transition:all .15s;"
+            onmouseover="this.style.borderColor='rgba(255,255,255,.35)'; this.style.color='#fff'"
+            onmouseout="this.style.borderColor='rgba(255,255,255,.15)'; this.style.color='#a8a8a8'">
+            📷 Add Media
+          </label>
+          <input type="file" id="storyMediaInput" accept="image/*,video/*" style="display:none;"
+            onchange="handleStoryMediaSelect(event)">
+
+          <button id="postStoryBtn" onclick="postStory()" style="flex:1; padding:11px 14px; border-radius:12px; border:none; cursor:pointer;
+               background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);
+               color:#fff; font-size:14px; font-weight:700; font-family:inherit;
+               transition:opacity .15s, transform .15s;"
+            onmouseover="this.style.opacity='.88'; this.style.transform='translateY(-1px)'"
+            onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'">
+            Post Story
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- STORIES SCRIPT -->
+    <script>
+      // Move createStoryModal to <body> so it's never trapped in a hidden parent
+      document.addEventListener('DOMContentLoaded', function () {
+        var m = document.getElementById('createStoryModal');
+        if (m && m.parentNode !== document.body) {
+          document.body.appendChild(m);
+        }
+      });
+
+      // ── GLOBAL story modal helpers (must be outside IIFE so onclick works) ──
+      function openCreateStory(event) {
+        if (event) event.stopPropagation();
+
+        // Close any other open modal first
+        var profileEdit = document.getElementById('profileEditModal');
+        if (profileEdit) profileEdit.style.display = 'none';
+
+        var modal = document.getElementById('createStoryModal');
+        if (!modal) return;
+
+        // Use requestAnimationFrame to ensure browser handles the close first
+        requestAnimationFrame(function() {
+          modal.setAttribute('style',
+            'display:flex !important;' +
+            'position:fixed;' +
+            'top:0;left:0;right:0;bottom:0;' +
+            'z-index:30000;' +
+            'background:rgba(0,0,0,0.88);' +
+            '-webkit-backdrop-filter:blur(10px);' +
+            'backdrop-filter:blur(10px);' +
+            'align-items:center;' +
+            'justify-content:center;'
+          );
+
+          var txt = document.getElementById('storyTextInput');
+          if (txt) txt.value = '';
+          if (typeof clearStoryMedia === 'function') clearStoryMedia();
+          setTimeout(function () { if (txt) txt.focus(); }, 150);
+        });
+      }
+
+      function closeCreateStory() {
+        var modal = document.getElementById('createStoryModal');
+        if (modal) modal.setAttribute('style', 'display:none;');
+        if (typeof clearStoryMedia === 'function') clearStoryMedia();
+      }
+
+      // Smart handler for "Your Story" bubble
+      // Smart handler for "Your Story" bubble
+      function handleMyStoryClick(event) {
+        if (event) event.stopPropagation();
+        if (!window.currentUser) return;
+
+        // Optimization: Use the visual state of the ring to decide
+        // If the + button is hidden, it means we definitely have a story
+        var addBtn = document.getElementById('myStoryAddBtn');
+        var hasStory = addBtn && addBtn.style.display === 'none';
+
+        if (hasStory) {
+          if (typeof loadUserStories === 'function') {
+            loadUserStories(
+              window.currentUser.handle,
+              window.currentUser.name,
+              window.currentUser.photo
+            );
+          }
+        } else {
+          // No active story - open creator
+          if (typeof openCreateStory === 'function') openCreateStory(event);
+        }
+      }
+    </script>
+
+    <!-- STORIES IIFE -->
+    <script>
+      (function () {
+        'use strict';
+
+        // ── local state ──────────────────────────────────────────────
+        var _stories = [];
+        var _storyIdx = 0;
+        var _storyTimer = null;
+        var _mediaPendingUrl = null;
+        var _mediaPendingType = null;
+
+        // safe formatTime — falls back if the main-script version isn't ready yet
+        function _fmtTime(ms) {
+          if (typeof formatTime === 'function') return formatTime(ms);
+          if (!ms) return '';
+          var diff = Date.now() - ms;
+          if (diff < 60000) return 'just now';
+          if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+          if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+          return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+
+        // ── tray loader ─────────────────────────────────────────────
+        window.fetchStoriesFeed = function () {
+          fetch('/api/stories/feed')
+            .then(function (r) {
+              if (!r.ok) throw new Error('HTTP ' + r.status);
+              return r.json();
+            })
+            .then(function (users) {
+              var tray = document.getElementById('storiesTray');
+              if (!tray) return;
+
+              var yourRing = tray.firstElementChild;
+              tray.innerHTML = '';
+              if (yourRing) tray.appendChild(yourRing);
+              
+              if (Array.isArray(users)) {
+                var myHandle = window.currentUser && window.currentUser.handle;
+                // Normalize handles for comparison (strip @ if present)
+                var cleanMyHandle = myHandle ? myHandle.replace(/^@/, '') : '';
+                
+                var iHaveStory = users.some(function (u) { 
+                  var cleanU = u.handle.replace(/^@/, '');
+                  return cleanU === cleanMyHandle; 
+                });
+
+                var addBtn = document.getElementById('myStoryAddBtn');
+                var myRing = document.getElementById('myStoryRing');
+                var myLabel = document.getElementById('myStoryLabel');
+
+                if (iHaveStory) {
+                  // Show glowing ring indicating active story
+                  if (myRing) myRing.style.background = 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)';
+                  if (addBtn) addBtn.style.display = 'none'; // hide the + when story exists
+                  if (myLabel) myLabel.textContent = 'Your Story ✓';
+                } else {
+                  if (myRing) myRing.style.background = 'var(--border)';
+                  if (addBtn) addBtn.style.display = 'flex';
+                  if (myLabel) myLabel.textContent = 'Your Story';
+                }
+              }
+
+              if (!Array.isArray(users) || users.length === 0) return;
+
+              users.forEach(function (u) {
+                // Skip current user — their bubble is always shown as "Your Story"
+                var cleanU = u.handle.replace(/^@/, '');
+                var cleanMyHandle = (window.currentUser && window.currentUser.handle || '').replace(/^@/, '');
+                if (cleanU === cleanMyHandle) return;
+
+                var el = document.createElement('div');
+                el.className = 'story-avatar-wrap';
+                el.onclick = function () { loadUserStories(u.handle, u.name, u.photo); };
+
+                var imgHtml = u.photo
+                  ? '<img src="' + u.photo + '" style="width:56px;height:56px;border-radius:50%;border:2px solid #000;object-fit:cover;">'
+                  : '<div class="mini-avatar" style="width:56px;height:56px;">' + ((u.name || u.handle)[0] || '?').toUpperCase() + '</div>';
+
+                el.innerHTML = '<div class="story-ring">' + imgHtml + '</div>'
+                  + '<div class="story-handle">' + (u.handle || '') + '</div>';
+                tray.appendChild(el);
+              });
+            })
+            .catch(function (err) {
+              console.warn('[Stories] fetchStoriesFeed error:', err);
+            });
+        };
+
+        // ── load a user's active stories ────────────────────────────
+        window.loadUserStories = function (handle, name, photo) {
+          if (!handle) return;
+          fetch('/api/stories/' + encodeURIComponent(handle))
+            .then(function (r) {
+              if (!r.ok) throw new Error('HTTP ' + r.status);
+              return r.json();
+            })
+            .then(function (stories) {
+              if (!Array.isArray(stories) || stories.length === 0) {
+                if (typeof showNotif === 'function') showNotif('No active stories.');
+                return;
+              }
+              _stories = stories;
+              _storyIdx = 0;
+
+              document.getElementById('storyViewerName').textContent = name || handle;
+              document.getElementById('storyViewerAvatarWrap').innerHTML = photo
+                ? '<img src="' + photo + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">'
+                : '<div class="mini-avatar" style="width:36px;height:36px;font-size:14px;">' + ((name || handle)[0] || '?').toUpperCase() + '</div>';
+
+              // Close any open modals first
+              if (typeof closeCreateStory === 'function') closeCreateStory();
+              var pEdit = document.getElementById('profileEditModal');
+              if (pEdit) pEdit.style.display = 'none';
+
+              // Navigate to storyView tab (same as switchTab but direct to avoid event ref)
+              var _allV = ['feedView','exploreView','aiView','profileView','messagesView','chatView','notificationsView','threadView','storyView'];
+              _allV.forEach(function(v){ var e=document.getElementById(v); if(e) e.style.display='none'; });
+              var sv = document.getElementById('storyView');
+              if (sv) sv.style.display = 'flex';
+              _renderStory();
+            })
+            .catch(function (err) {
+              console.warn('[Stories] loadUserStories error:', err);
+              if (typeof showNotif === 'function') showNotif('Could not load stories.');
+            });
+        };
+
+        // ── render current story ────────────────────────────────────
+        function _renderStory() {
+          if (_storyIdx >= _stories.length) {
+            closeStory();
+            return;
+          }
+
+          var s = _stories[_storyIdx];
+          var container = document.getElementById('storyMediaContainer');
+          container.innerHTML = '';
+          document.getElementById('storyText').textContent = s.text || '';
+          document.getElementById('storyViewerTime').textContent = _fmtTime(s.timestamp);
+
+          // rebuild progress bar
+          var pb = document.getElementById('storyProgressBar');
+          pb.innerHTML = '';
+          _stories.forEach(function (_, i) {
+            pb.innerHTML +=
+              '<div class="story-progress-segment">'
+              + '<div class="story-progress-fill" id="storyFill' + i + '"></div>'
+              + '</div>';
+          });
+          // instantly fill completed segments
+          for (var j = 0; j < _storyIdx; j++) {
+            var f = document.getElementById('storyFill' + j);
+            if (f) { f.style.transition = 'none'; f.style.width = '100%'; }
+          }
+
+          clearTimeout(_storyTimer);
+          var duration = 5000;
+
+          if (s.media_url) {
+            if (s.media_type === 'video') {
+              var vid = document.createElement('video');
+              vid.src = s.media_url;
+              vid.className = 'story-media';
+              vid.autoplay = true;
+              vid.playsInline = true;
+              vid.controls = false;
+              vid.style.maxWidth = '100%';
+              vid.style.maxHeight = '100%';
+              vid.style.objectFit = 'contain';
+              vid.onended = function () { nextStory(); };
+              vid.onloadedmetadata = function () {
+                duration = (vid.duration || 5) * 1000;
+                _startProgress(duration);
+              };
+              container.appendChild(vid);
+              vid.play().catch(function () { });
+            } else {
+              var img = document.createElement('img');
+              img.src = s.media_url;
+              img.className = 'story-media';
+              img.style.maxWidth = '100%';
+              img.style.maxHeight = '100%';
+              img.style.objectFit = 'contain';
+              container.appendChild(img);
+              requestAnimationFrame(function () {
+                _startProgress(duration);
+                _storyTimer = setTimeout(function () { nextStory(); }, duration);
+              });
+            }
+          } else {
+            // text-only story
+            requestAnimationFrame(function () {
+              _startProgress(duration);
+              _storyTimer = setTimeout(function () { nextStory(); }, duration);
+            });
+          }
+        }
+
+        function _startProgress(duration) {
+          var fill = document.getElementById('storyFill' + _storyIdx);
+          if (!fill) return;
+          fill.style.transition = 'none';
+          fill.style.width = '0%';
+          void fill.offsetWidth; // force reflow
+          fill.style.transition = 'width ' + duration + 'ms linear';
+          fill.style.width = '100%';
+        }
+
+        // ── public nav functions ─────────────────────────────────────
+        window.nextStory = function (e) {
+          if (e) e.stopPropagation();
+          clearTimeout(_storyTimer);
+          _storyIdx++;
+          _renderStory();
+        };
+
+        window.prevStory = function (e) {
+          if (e) e.stopPropagation();
+          clearTimeout(_storyTimer);
+          if (_storyIdx > 0) { _storyIdx--; _renderStory(); }
+        };
+
+        window.closeStory = function () {
+          clearTimeout(_storyTimer);
+          var container = document.getElementById('storyMediaContainer');
+          if (container) {
+            var vid = container.querySelector('video');
+            if (vid) { vid.pause(); vid.src = ''; }
+            container.innerHTML = '';
+          }
+          var st = document.getElementById('storyText');
+          if (st) st.textContent = '';
+          // Go back to Home feed
+          var _allV = ['feedView','exploreView','aiView','profileView','messagesView','chatView','notificationsView','threadView','storyView'];
+          _allV.forEach(function(v){ var e=document.getElementById(v); if(e) e.style.display='none'; });
+          var home = document.getElementById('feedView');
+          if (home) home.style.display = 'flex';
+          // Re-activate Home nav item
+          document.querySelectorAll('.nav-item').forEach(function(el){ el.classList.remove('active'); });
+          var homeNav = document.getElementById('mobileNavHome');
+          if (homeNav) homeNav.classList.add('active');
+        };
+
+        // ── create story modal — handled by global functions above IIFE ──
+        // openCreateStory() and closeCreateStory() are global, defined in the script tag above.
+
+        // ── media select — upload immediately, store URL ─────────────
+        window.handleStoryMediaSelect = function (e) {
+          var file = e.target.files[0];
+          if (!file) return;
+
+          _mediaPendingUrl = null;
+          _mediaPendingType = null;
+
+          var previewArea = document.getElementById('storyPreviewArea');
+          var imgEl = document.getElementById('storyPreviewImg');
+          var vidEl = document.getElementById('storyPreviewVid');
+          var progressBox = document.getElementById('storyUploadProgress');
+          var bar = document.getElementById('storyUploadBar');
+          var label = document.getElementById('storyUploadLabel');
+
+          previewArea.style.display = 'flex';
+          imgEl.style.display = 'none';
+          vidEl.style.display = 'none';
+          progressBox.style.display = 'block';
+          bar.style.width = '0%';
+          label.textContent = 'Uploading…';
+
+          var fd = new FormData();
+          fd.append('media', file);
+          fd.append('type', 'post');   // reuse your existing /upload route
+
+          var xhr = new XMLHttpRequest();
+          xhr.open('POST', '/upload', true);
+
+          xhr.upload.onprogress = function (ev) {
+            if (ev.lengthComputable) {
+              bar.style.width = Math.round(ev.loaded / ev.total * 100) + '%';
+            }
+          };
+
+          xhr.onload = function () {
+            progressBox.style.display = 'none';
+            if (xhr.status === 200) {
+              try {
+                var d = JSON.parse(xhr.responseText);
+                if (d.url) {
+                  _mediaPendingUrl = d.url;
+                  _mediaPendingType = d.type; // 'image' or 'video'
+                  if (d.type === 'video') {
+                    vidEl.src = d.url;
+                    vidEl.style.display = 'block';
+                  } else {
+                    imgEl.src = d.url;
+                    imgEl.style.display = 'block';
+                  }
+                } else {
+                  if (typeof showNotif === 'function') showNotif('Upload failed: ' + (d.error || 'unknown'));
+                  clearStoryMedia();
+                }
+              } catch (ex) {
+                if (typeof showNotif === 'function') showNotif('Upload response error');
+                clearStoryMedia();
+              }
+            } else {
+              if (typeof showNotif === 'function') showNotif('Upload failed (' + xhr.status + ')');
+              clearStoryMedia();
+            }
+          };
+
+          xhr.onerror = function () {
+            progressBox.style.display = 'none';
+            if (typeof showNotif === 'function') showNotif('Network error during upload');
+            clearStoryMedia();
+          };
+
+          xhr.send(fd);
+          // reset value at start so the same file can be re-picked after a clear
+          e.target.value = '';
+        };
+
+        window.clearStoryMedia = function () {
+          _mediaPendingUrl = null;
+          _mediaPendingType = null;
+          var previewArea = document.getElementById('storyPreviewArea');
+          var imgEl = document.getElementById('storyPreviewImg');
+          var vidEl = document.getElementById('storyPreviewVid');
+          var progressBox = document.getElementById('storyUploadProgress');
+          var input = document.getElementById('storyMediaInput');
+
+          if (previewArea) previewArea.style.display = 'none';
+          if (imgEl) { imgEl.style.display = 'none'; imgEl.src = ''; }
+          if (vidEl) { vidEl.style.display = 'none'; if (vidEl.pause) vidEl.pause(); vidEl.src = ''; }
+          if (progressBox) progressBox.style.display = 'none';
+          if (input) input.value = '';
+        };
+
+        // ── post the story ────────────────────────────────────────────
+        // Uses your EXISTING /upload route with type='story'
+        // Your Flask handler should detect type==='story' and save a story record
+        window.postStory = function () {
+          var textVal = (document.getElementById('storyTextInput').value || '').trim();
+
+          if (!textVal && !_mediaPendingUrl) {
+            if (typeof showNotif === 'function') showNotif('Add a caption or choose a photo/video first.');
+            return;
+          }
+
+          var btn = document.getElementById('postStoryBtn');
+          btn.disabled = true;
+          btn.textContent = 'Posting…';
+
+          // ── Strategy A: if media was already uploaded, just POST the metadata ──
+          // This calls /api/stories which your Flask server may or may not have.
+          // We also try /upload with type=story as a fallback (Strategy B below).
+          var payload = {
+            text: textVal,
+            media_url: _mediaPendingUrl || null,
+            media_type: _mediaPendingType || null
+          };
+
+          // Check whether /api/stories exists by just calling it
+          fetch('/api/stories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+            .then(function (r) {
+              // If server returns 404 / 405 the route doesn't exist — fall back
+              if (r.status === 404 || r.status === 405) {
+                return _postStoryViaUpload(textVal, btn);
+              }
+              return r.json().then(function (d) {
+                btn.disabled = false;
+                btn.textContent = 'Post Story';
+                if (d.success || d.id || d.story_id) {
+                  _afterPost();
+                } else {
+                  // If the API returned an error, fall back to /upload
+                  _postStoryViaUpload(textVal, btn);
+                }
+              });
+            })
+            .catch(function () {
+              // Network or parse error — fall back to /upload
+              _postStoryViaUpload(textVal, btn);
+            });
+        };
+
+        // Fallback: post story via your existing /upload endpoint with type=story
+        function _postStoryViaUpload(textVal, btn) {
+          var fd = new FormData();
+          fd.append('type', 'story');
+          fd.append('text', textVal);
+          if (_mediaPendingUrl) fd.append('media_url', _mediaPendingUrl);
+          if (_mediaPendingType) fd.append('media_type', _mediaPendingType);
+          // If there is still a raw file chosen, attach it
+          var fileInput = document.getElementById('storyMediaInput');
+          if (fileInput && fileInput.files && fileInput.files[0]) {
+            fd.append('media', fileInput.files[0]);
+          }
+
+          fetch('/upload', { method: 'POST', body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              btn.disabled = false;
+              btn.textContent = 'Post Story';
+              if (d.success || d.url || d.story_id) {
+                _afterPost();
+              } else {
+                if (typeof showNotif === 'function') showNotif(d.error || 'Failed to post story.');
+              }
+            })
+            .catch(function () {
+              btn.disabled = false;
+              btn.textContent = 'Post Story';
+              if (typeof showNotif === 'function') showNotif('Network error — story not posted.');
+            });
+        }
+
+        function _afterPost() {
+          closeCreateStory();
+          if (typeof showNotif === 'function') showNotif('Story posted! 🌿');
+          // Refresh the tray
+          if (typeof fetchStoriesFeed === 'function') fetchStoriesFeed();
+        }
+
+        // ── boot: load tray after page settles ─────────────────────
+        if (window.currentUser) {
+          setTimeout(window.fetchStoriesFeed, 900);
+        }
+
+      })(); // end IIFE — no globals leaked except the window.* assignments above
+    </script>
+
+    <!-- PWA Service Worker -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+

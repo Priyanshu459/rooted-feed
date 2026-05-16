@@ -1,0 +1,26 @@
+<!-- STORY VIEW (full-screen tab, replaces fixed overlay) -->
+    <div class="main-feed" id="storyView" style="display:none; background:#000; border:none; overflow:hidden; position:relative; flex-direction:column; align-items:center; justify-content:center;">
+
+      <!-- Progress segments -->
+      <div class="story-progress-bar" id="storyProgressBar"></div>
+
+      <!-- Author header -->
+      <div class="story-header">
+        <div id="storyViewerAvatarWrap"></div>
+        <div style="display:flex;flex-direction:column;">
+          <span id="storyViewerName" style="font-weight:700;font-size:15px;text-shadow:0 1px 3px rgba(0,0,0,.6);"></span>
+          <span id="storyViewerTime" style="font-size:12px;opacity:.75;text-shadow:0 1px 3px rgba(0,0,0,.6);"></span>
+        </div>
+      </div>
+
+      <!-- Close → back to Home -->
+      <span onclick="closeStory()" style="position:absolute;top:20px;right:20px;color:#fff;font-size:36px;cursor:pointer;z-index:10001;line-height:1;text-shadow:0 1px 4px rgba(0,0,0,.5);">&#x2715;</span>
+
+      <!-- Tap zones + media -->
+      <div class="story-content" style="position:relative;width:100%;height:100%;max-width:450px;display:flex;align-items:center;justify-content:center;">
+        <div onclick="prevStory()" style="position:absolute;left:0;top:0;width:50%;height:100%;z-index:10;cursor:pointer;"></div>
+        <div onclick="nextStory()" style="position:absolute;right:0;top:0;width:50%;height:100%;z-index:10;cursor:pointer;"></div>
+        <div id="storyMediaContainer" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;"></div>
+        <div id="storyText" style="position:absolute;bottom:80px;left:20px;right:20px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8);font-size:20px;text-align:center;font-weight:600;pointer-events:none;"></div>
+      </div>
+    </div>

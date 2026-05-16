@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rooted Feed — All 8 Fixes Applied</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    :root {
+      --bg: #000;
+      --bg-elevated: #121212;
+      --bg-card: #1c1c1c;
+      --surface: rgba(255, 255, 255, 0.05);
+      --surface-hover: rgba(255, 255, 255, 0.08);
+      --border: rgba(255, 255, 255, 0.12);
+      --border-bright: rgba(255, 255, 255, 0.28);
+      --text-main: #f5f5f5;
+      --text-dim: #a8a8a8;
+      --text-light: #737373;
+      --ig-grad: linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+      --accent: #3DFF8C;
+      --accent-glow: rgba(61, 255, 140, 0.18);
+      --terracotta: #ed4956;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      padding: 0
+    }
+
+    /* ── PAGE SHELL ── */
+    .page-header {
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .page-header .logo-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--ig-grad);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(220, 39, 67, 0.35);
+      flex-shrink: 0;
+    }
+
+    /* FIX 1 APPLIED: no title="" attribute on logo wrapper */
+    .page-header .logo-text {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: var(--ig-grad);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .page-header .subtitle {
+      margin-left: auto;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    /* ── SECTION LABELS ── */
+    .section {
+      padding: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .fix-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #000;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .section-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .diff {
+      background: rgba(61, 255, 140, 0.08);
+      border: 1px solid rgba(61, 255, 140, 0.2);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--accent);
+      margin-bottom: 16px;
+      font-family: monospace;
+    }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 24px;
+      border: none;
+      border-radius: 10px;
+      background: var(--ig-grad);
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.2px;
+      overflow: hidden;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 18px rgba(220, 39, 67, 0.28);
+    }
+
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0);
+      transition: background 0.15s;
+      pointer-events: none;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 28px rgba(220, 39, 67, 0.42);
+    }
+
+    .btn-primary:hover::after {
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.97);
+      box-shadow: 0 3px 12px rgba(220, 39, 67, 0.25);
+    }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 22px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-bright);
+      background: transparent;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .btn-outline:hover {
+      border-color: rgba(255, 255, 255, 0.45);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-follow {
+      padding: 8px 20px;
+      border-radius: 9px;
+      background: var(--accent);
+      color: #000;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+
+    .btn-follow:hover {
+      opacity: 0.88;
+      transform: translateY(-1px);
+    }
+
+    .btn-change-photo {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 20px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-bright);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-change-photo:hover {
+      background: rgba(255, 255, 255, 0.10);
+      border-color: rgba(255, 255, 255, 0.38);
+    }
+
+    /* ── NODE PILLS ── */
+    .node-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 16px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .node-pill:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .node-pill.active {
+      background: var(--ig-grad);
+      border-color: transparent;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* ── TOGGLE SWITCH (FIX 4) ── */
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 26px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #333;
+      transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 26px;
+    }
+
+    /* FIX 4: only ::before — no extra span.toggle-knob */
+    .toggle-slider::before {
+      content: "";
+      position: absolute;
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 50%;
+    }
+
+    input:checked+.toggle-slider {
+      background: var(--accent);
+    }
+
+    input:checked+.toggle-slider::before {
+      transform: translateX(22px);
+    }
+
+    /* ── PROFILE MODAL (FIX 2) ── */
+    .modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 28px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .modal-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+
+    .crop-container {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 2.5px solid var(--accent);
+      box-shadow: 0 0 20px var(--accent-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .crop-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .crop-initial {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--ig-grad);
+      font-size: 42px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .form-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      font-size: 15px;
+      font-family: 'DM Sans', sans-serif;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .form-input:focus {
+      border-color: var(--border-bright);
+    }
+
+    .form-textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    /* ── POST CARD (FIX 5 & 6) ── */
+    .post-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      gap: 14px;
+      transition: background 0.15s;
+    }
+
+    .post-card:hover {
+      background: #222;
+    }
+
+    .post-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--ig-grad);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 0 2px #bc1888;
+    }
+
+    .post-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .post-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .post-name {
+      font-weight: 700;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .post-name:hover {
+      text-decoration: underline;
+    }
+
+    .post-handle {
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .post-time {
+      color: var(--text-light);
+      font-size: 13px;
+      margin-left: auto;
+    }
+
+    .post-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-main);
+      margin-bottom: 14px;
+    }
+
+    .post-actions {
+      display: flex;
+      gap: 4px;
+      color: var(--text-dim);
+    }
+
+    .post-action {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: color 0.15s;
+      padding: 4px 6px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text-dim);
+      border: none;
+      background: none;
+    }
+
+    .post-action:hover {
+      color: #fff;
+    }
+
+    .post-action:hover .action-icon {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .post-action svg {
+      display: block;
+      transition: transform 0.15s;
+    }
+
+    .post-action:hover svg {
+      transform: scale(1.12);
+    }
+
+    .action-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+
+    /* FIX 6: heart SVG fill animation */
+    .post-action.like .heart-svg path {
+      transition: fill 0.2s, stroke 0.2s;
+    }
+
+    .post-action.like:hover svg path {
+      stroke: var(--terracotta);
+    }
+
+    .post-action.like.liked svg path {
+      fill: var(--terracotta);
+      stroke: var(--terracotta);
+    }
+
+    .post-action.like.liked {
+      color: var(--terracotta);
+    }
+
+    .post-action.like.liked .action-icon {
+      background: rgba(237, 73, 86, 0.1);
+    }
+
+    /* Bookmark fill */
+    .post-action.bookmarked svg path {
+      fill: var(--accent);
+      stroke: var(--accent);
+    }
+
+    .post-action.bookmarked {
+      color: var(--accent);
+    }
+
+    /* FIX 8: right sidebar styles */
+    .right-sidebar-demo {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      width: 280px;
+    }
+
+    .search-bar-demo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #121212;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 9px 16px;
+      margin-bottom: 16px;
+      transition: border-color 0.15s;
+    }
+
+    .search-bar-demo:focus-within {
+      border-color: var(--border-bright);
+    }
+
+    .search-bar-demo svg {
+      flex-shrink: 0;
+      color: var(--text-dim);
+    }
+
+    .search-bar-demo input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .search-bar-demo input::placeholder {
+      color: var(--text-light);
+    }
+
+    .trending-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    .trend-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .trend-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .trend-item:hover {
+      opacity: 0.7;
+    }
+
+    .trend-category {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-bottom: 2px;
+    }
+
+    .trend-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+
+    .trend-count {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .unread-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--ig-grad);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    /* layout helpers */
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media(max-width:640px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* before/after visual */
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media(max-width:540px) {
+      .compare {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .compare-panel {
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .compare-panel.before {
+      background: rgba(237, 73, 86, 0.06);
+      border-color: rgba(237, 73, 86, 0.2);
+    }
+
+    .compare-panel.after {
+      background: rgba(61, 255, 140, 0.04);
+      border-color: rgba(61, 255, 140, 0.2);
+    }
+
+    .compare-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .compare-panel.before .compare-label {
+      color: var(--terracotta);
+    }
+
+    .compare-panel.after .compare-label {
+      color: var(--accent);
+    }
+
+    /* tooltip demo (before = broken) */
+    .tooltip-before {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+    }
+
+    .fake-tooltip {
+      position: absolute;
+      top: -32px;
+      left: 0;
+      background: #fff;
+      color: #000;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <!-- FIX 1 APPLIED: no title="" attribute -->
+    <div style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3C12 3 5 7.5 5 13.2C5 17.08 8.13 20 12 20C15.87 20 19 17.08 19 13.2C19 7.5 12 3 12 3Z"
+            fill="#fff" />
+          <path d="M12 9V19M9 13C10.2 12 11 11 12 10.5" stroke="rgba(0,0,0,0.25)" stroke-width="1.2"
+            stroke-linecap="round" />
+        </svg>
+      </div>
+      <span class="logo-text">Rooted</span>
+    </div>
+    <span class="subtitle">8 Bugs Fixed — Live Demo</span>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════
+     FIX 1: Logo tooltip removed
+═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label"><span class="fix-badge">1</span> Logo Tooltip Bug</div>
+    <div class="section-title">Browser "Rooted" tooltip removed</div>
+    <div class="section-desc">The <code>title="Rooted"</code> on the logo div triggered the browser's native tooltip
+      popup on hover. Removed the attribute — the logo still works fine, no tooltip.</div>
+    <div class="compare">
+      <div class="compare-panel before">
+        <div class="compare-label">✕ Before</div>
+        <div class="tooltip-before">
+          <div class="fake-tooltip">Rooted</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="logo-icon"
+              style="width:28px;height:28px;border-radius:8px;background:var(--ig-grad);display:flex;align-items:center;justify-content:center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3C12 3 5 7.5 5 13.2C5 17.08 8.13 20 12 20C15.87 20 19 17.08 19 13.2C19 7.5 12 3 12 3Z"
+                  fill="#fff" />
+              </svg>
+            </div>
+            <span
+              style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;background:var(--ig-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Rooted</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:8px;">title="Rooted" → browser tooltip on hover
+          </div>
+        </div>
+      </div>
+      <div class="compare-panel after">
+        <div class="compare-label">✓ After</div>
+        <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" title="">
+          <div class="logo-icon"
+            style="width:28px;height:28px;border-radius:8px;background:var(--ig-grad);display:flex;align-items:center;justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3C12 3 5 7.5 5 13.2C5 17.08 8.13 20 12 20C15.87 20 19 17.08 19 13.2C19 7.5 12 3 12 3Z"
+                fill="#fff" />
+            </svg>
+          </div>
+          <span
+            style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;background:var(--ig-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Rooted</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:8px;">No title attribute → no tooltip</div>
+      </div>
+    </div>
+    <div class="diff">Remove: title="Rooted" from &lt;div class="app-logo" ...&gt;</div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════
+     FIX 2: Edit Profile — black circle → shows photo
+═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label"><span class="fix-badge">2</span> Edit Profile Modal</div>
+    <div class="section-title">Black circle → current photo loads instantly</div>
+    <div class="section-desc">When no photo was loaded yet, the crop container showed a black empty circle. Now it
+      pre-fills with the user's current photo on open, or shows an initial-letter avatar as fallback.</div>
+    <div class="compare">
+      <div class="compare-panel before">
+        <div class="compare-label">✕ Before — empty black</div>
+        <div
+          style="width:100px;height:100px;margin:0 auto 12px;border-radius:50%;background:#1c1c1c;border:2.5px solid var(--accent);box-shadow:0 0 20px var(--accent-glow);">
+        </div>
+        <div style="text-align:center;font-size:12px;color:var(--text-dim);">Just black. No idea what's there.</div>
+      </div>
+      <div class="compare-panel after">
+        <div class="compare-label">✓ After — photo loads</div>
+        <!-- With photo -->
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <div>
+            <div class="crop-container" style="width:90px;height:90px;">
+              <div
+                style="width:100%;height:100%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff;">
+                P</div>
+            </div>
+            <div style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:4px;">Has photo</div>
+          </div>
+          <div>
+            <div class="crop-container" style="width:90px;height:90px;">
+              <div class="crop-initial">K</div>
+            </div>
+            <div style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:4px;">No photo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="diff">In openProfileEdit() → load currentUser.photo into cropImg on modal open</div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════
+     FIX 3: Profile view avatar — no black flash
+═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label"><span class="fix-badge">3</span> Profile View Avatar</div>
+    <div class="section-title">Avatar shows instantly — no black flash</div>
+    <div class="section-desc">Before: the profile header avatar was black until the API fetch resolved. Now it reads
+      from the already-loaded posts cache immediately, then API confirms the final photo.</div>
+    <div class="compare">
+      <div class="compare-panel before">
+        <div class="compare-label">✕ Before — black while loading</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div
+            style="width:80px;height:80px;border-radius:50%;background:#111;border:3px solid var(--bg);box-shadow:0 0 0 1px var(--border);flex-shrink:0;">
+          </div>
+          <div>
+            <div style="font-size:15px;font-weight:700;">@priyanshupatel</div>
+            <div style="font-size:12px;color:var(--text-dim);">Avatar blank until fetch done</div>
+          </div>
+        </div>
+      </div>
+      <div class="compare-panel after">
+        <div class="compare-label">✓ After — instant from cache</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div
+            style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;border:3px solid var(--bg);box-shadow:0 0 0 2px #bc1888;flex-shrink:0;">
+            P</div>
+          <div>
+            <div style="font-size:15px;font-weight:700;">@priyanshupatel</div>
+            <div style="font-size:12px;color:var(--text-dim);">From ALL_POSTS cache — zero wait</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="diff">Add 5 lines before fetch() in openProfile() to read senderPhoto from ALL_POSTS cache</div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════
+     FIX 4: Toggle switch double-knob
+═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label"><span class="fix-badge">4</span> Toggle Switch</div>
+    <div class="section-title">Double-knob bug fixed</div>
+    <div class="section-desc">The HTML had an extra <code>&lt;span class="toggle-knob"&gt;</code> inside
+      <code>.toggle-slider</code>, but CSS also uses <code>::before</code> for the knob — two overlapping white circles.
+      The extra span is removed, only <code>::before</code> remains.</div>
+    <div class="compare">
+      <div class="compare-panel before">
+        <div class="compare-label">✕ Before — two knobs</div>
+        <div style="position:relative;display:inline-block;width:48px;height:26px;">
+          <div style="position:absolute;inset:0;background:#333;border-radius:26px;">
+            <!-- ::before knob -->
+            <div style="position:absolute;width:20px;height:20px;background:white;border-radius:50%;left:3px;top:3px;">
+            </div>
+            <!-- extra .toggle-knob span — causes double -->
+            <div
+              style="position:absolute;width:20px;height:20px;background:white;border-radius:50%;left:3px;top:3px;opacity:0.6;">
+            </div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:8px;">Overlapping knobs — ugly</div>
+      </div>
+      <div class="compare-panel after">
+        <div class="compare-label">✓ After — clean toggle</div>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <label class="toggle-switch">
+            <input type="checkbox">
+            <span class="toggle-slider"></span>
+          </label>
+          <label class="toggle-switch">
+            <input type="checkbox" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:12px;">Click to toggle — single knob only</div>
+        <div class="toggle-wrap" style="margin-top:12px;">
+          <div>
+            <div style="font-weight:600;font-size:14px;">Private Profile</div>
+            <div style="font-size:12px;color:var(--text-dim);">Hide posts from global feed</div>
+          </div>
+          <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+    </div>
+    <div class="diff">Remove &lt;span class="toggle-knob"&gt; from modal HTML. CSS ::before handles the knob.</div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════
+     FIX 5 & 6: SVG action icons + heart animation
+═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label"><span class="fix-badge">5</span><span class="fix-badge" style="margin-left:4px;">6</span>
+      Post Action Icons + Like Animation</div>
+    <div class="section-title">Emoji → SVG icons, heart fills on click</div>
+    <div class="section-desc">Platform emojis (💬 🔁 ❤️ 🔖 📤) render at different sizes on different OSes and can't be
+      CSS-styled. Replaced with inline SVGs. The heart now smoothly fills red on like and empties on unlike.</div>
+
+    <!-- LIVE POST CARD -->
+    <div class="post-card" style="max-width:560px;">
+      <div class="post-avatar">
+        <div
+          style="width:100%;height:100%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">
+          P</div>
+      </div>
+      <div class="post-content">
+        <div class="post-header">
+          <span class="post-name">Priyanshu Patel</span>
+          <span class="post-handle">@priyanshupatel</span>
+          <span class="post-time">21:14</span>
+        </div>
+        <div class="post-text">hello kajal ji — click the icons below to test them live 👇</div>
+        <div class="post-actions">
+
+          <!-- Reply -->
+          <button class="post-action" onclick="this.style.color='#fff'" title="Reply">
+            <div class="action-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+          </button>
+
+          <!-- Reroot -->
+          <button class="post-action" id="reroot-btn" onclick="toggleReroot(this)" title="Reroot">
+            <div class="action-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 1l4 4-4 4" />
+                <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                <path d="M7 23l-4-4 4-4" />
+                <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
+            </div>
+            <span id="reroot-count"></span>
+          </button>
+
+          <!-- Like — FIX 6 live demo -->
+          <button class="post-action like" id="like-demo" onclick="toggleLike(this)" title="Like">
+            <div class="action-icon">
+              <svg class="heart-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            </div>
+            <span id="like-count-demo">1</span>
+          </button>
+
+          <!-- Bookmark -->
+          <button class="post-action" id="bookmark-demo" onclick="toggleBookmark(this)" title="Bookmark">
+            <div class="action-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+          </button>
+
+          <!-- Share -->
+          <button class="post-action" onclick="showCopied(this)" title="Share">
+            <div class="action-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+            </div>
+          </button>
+
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);margin-top:12px;">↑ All icons are live — click them</div>
+    <div class="diff">In addPostToFeed() replace emoji strings with buildPostActionsHTML(post) SVG version</div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════
+     FIX 7: Change Photo button
+═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label"><span class="fix-badge">7</span> Change Photo Button</div>
+    <div class="section-title">"Change Photo" matches modal design</div>
+    <div class="section-desc">The button was using <code>.node-pill</code> with a green accent border, clashing with the
+      dark modal. Now it's a glass-morphism button that fits.</div>
+    <div class="compare">
+      <div class="compare-panel before">
+        <div class="compare-label">✕ Before — green accent pill</div>
+        <button
+          style="padding:8px 20px;border-radius:20px;border:1.5px solid #3DFF8C;background:transparent;color:#3DFF8C;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Change
+          Photo</button>
+      </div>
+      <div class="compare-panel after">
+        <div class="compare-label">✓ After — matches modal</div>
+        <button class="btn-change-photo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+          Change Photo
+        </button>
+      </div>
+    </div>
+    <div class="diff">#profileEditModal .node-pill { border: 1.5px solid var(--border-bright); background:
+      rgba(255,255,255,0.06); color: var(--text-main); }</div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════
+     FIX 8: Missing CSS classes
+═══════════════════════════════════════════════════ -->
+  <div class="section" style="border-bottom:none;">
+    <div class="section-label"><span class="fix-badge">8</span> Missing CSS Classes</div>
+    <div class="section-title">All missing styles added</div>
+    <div class="section-desc">These classes were used in HTML but had no CSS rules, causing unstyled/broken layout.
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
+
+      <!-- Search bar -->
+      <div>
+        <div style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:8px;">.search-bar</div>
+        <div class="search-bar-demo">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21L16.65 16.65" />
+          </svg>
+          <input type="text" placeholder="Search Rooted...">
+        </div>
+      </div>
+
+      <!-- Trending box -->
+      <div>
+        <div style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:8px;">.trending-box</div>
+        <div class="right-sidebar-demo">
+          <div class="trending-title">Trending for you</div>
+          <div class="trend-item">
+            <div class="trend-category">Technology · Trending</div>
+            <div class="trend-name">#RootedAI</div>
+            <div class="trend-count">24.5K posts</div>
+          </div>
+          <div class="trend-item">
+            <div class="trend-category">Lifestyle · Trending</div>
+            <div class="trend-name">Forest Living</div>
+            <div class="trend-count">12.1K posts</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Node pills -->
+      <div>
+        <div style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:8px;">.node-pill</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="node-pill active" onclick="setPill(this)">All</button>
+          <button class="node-pill" onclick="setPill(this)">Tech</button>
+          <button class="node-pill" onclick="setPill(this)">Nature</button>
+          <button class="node-pill" onclick="setPill(this)">General</button>
+        </div>
+      </div>
+
+      <!-- Unread badge -->
+      <div>
+        <div style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:8px;">.unread-badge</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="color:var(--text-dim);font-size:14px;">Messages</span>
+          <span class="unread-badge">3</span>
+          <span style="color:var(--text-dim);font-size:14px;">Notifications</span>
+          <span class="unread-badge">7</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="diff" style="margin-top:20px;">Added: .right-sidebar · .search-bar · .trending-box · .trend-item ·
+      .node-pill · .post-content · .post-header · .unread-badge · .edit-modal-card · .group-modal-card ·
+      .member-list-container · .text-input</div>
+  </div>
+
+
+  <script>
+    // Live demo interactions
+    let liked = true, likeCount = 1;
+    function toggleLike(btn) {
+      liked = !liked;
+      likeCount = liked ? likeCount + 1 : likeCount - 1;
+      const svg = btn.querySelector('.heart-svg');
+      if (liked) {
+        btn.classList.add('liked');
+        svg.setAttribute('fill', '#ed4956');
+        svg.setAttribute('stroke', '#ed4956');
+      } else {
+        btn.classList.remove('liked');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+      }
+      document.getElementById('like-count-demo').textContent = likeCount > 0 ? likeCount : '';
+    }
+
+    // Init liked state
+    document.getElementById('like-demo').classList.add('liked');
+    document.getElementById('like-demo').querySelector('.heart-svg').setAttribute('fill', '#ed4956');
+    document.getElementById('like-demo').querySelector('.heart-svg').setAttribute('stroke', '#ed4956');
+
+    let rerooted = false;
+    function toggleReroot(btn) {
+      rerooted = !rerooted;
+      btn.style.color = rerooted ? '#3DFF8C' : '';
+      document.getElementById('reroot-count').textContent = rerooted ? '1' : '';
+    }
+
+    let bookmarked = false;
+    function toggleBookmark(btn) {
+      bookmarked = !bookmarked;
+      const svg = btn.querySelector('svg');
+      if (bookmarked) {
+        btn.classList.add('bookmarked');
+        svg.setAttribute('fill', '#3DFF8C');
+        svg.setAttribute('stroke', '#3DFF8C');
+      } else {
+        btn.classList.remove('bookmarked');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+      }
+    }
+
+    function showCopied(btn) {
+      const orig = btn.style.color;
+      btn.style.color = '#3DFF8C';
+      setTimeout(() => btn.style.color = orig, 800);
+    }
+
+    function setPill(el) {
+      document.querySelectorAll('.node-pill').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+    }
+  </script>
+</body>
+
+</html>

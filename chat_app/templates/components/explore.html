@@ -1,0 +1,15 @@
+<!-- EXPLORE VIEW -->
+    <div class="main-feed" id="exploreView" style="display:none;">
+      <div class="feed-header" style="padding: 16px 24px;">
+        <h2 style="font-size:20px; font-weight:700; margin-bottom:16px;">Explore</h2>
+        <div class="search-bar" style="margin-bottom:16px;">
+          <input type="text" id="exploreSearch" placeholder="Search topics or people..." oninput="filterExplorePosts()">
+        </div>
+        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px;">
+          <button onclick="setExploreNode('All')" class="node-pill active" data-node="All">All</button>
+          <button onclick="setExploreNode('Tech')" class="node-pill" data-node="Tech">Tech</button>
+          <button onclick="setExploreNode('Nature')" class="node-pill" data-node="Nature">Nature</button>
+        </div>
+      </div>
+      <div class="posts-area" id="explorePostsArea"></div>
+    </div>

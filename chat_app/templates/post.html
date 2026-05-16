@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Primary SEO -->
+  <title>{{ og_title }} | Rooted Feed</title>
+  <meta name="description" content="{{ og_description }}">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph (WhatsApp, iMessage, Facebook, LinkedIn) -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ og_title }}">
+  <meta property="og:description" content="{{ og_description }}">
+  <meta property="og:url" content="{{ og_url }}">
+  <meta property="og:site_name" content="Rooted Feed">
+  {% if og_image %}
+  <meta property="og:image" content="{{ og_image }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  {% endif %}
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SocialMediaPosting",
+    "headline": "{{ og_title }}",
+    "description": "{{ og_description }}",
+    "datePublished": "{{ post.timestamp }}",
+    "author": {
+      "@type": "Person",
+      "name": "{{ post.sender }}",
+      "alternateName": "{{ post.handle }}"
+    },
+    "image": "{{ og_image }}",
+    "url": "{{ og_url }}"
+  }
+  </script>
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ og_title }}">
+  <meta name="twitter:description" content="{{ og_description }}">
+  {% if og_image %}<meta name="twitter:image" content="{{ og_image }}">{% endif %}
+
+  <!-- PWA -->
+  <meta name="theme-color" content="#4A7C59">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --earth1: #2D1B0E; --earth2: #5C3A1E; --earth3: #8B5E3C;
+      --earth4: #C4956A; --earth5: #E8C99A; --green3: #4A7C59;
+      --moss: #5C7A4E; --cream: #FBF7F0; --stone: #7A6B5A;
+      --terracotta: #C4614A;
+    }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--earth1);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .nav-bar {
+      width: 100%;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(139,94,60,0.1);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      color: var(--earth1);
+      font-weight: 600;
+    }
+    .logo-icon-sm {
+      width: 36px; height: 36px;
+      background: linear-gradient(145deg, #3d7a52, #2a5c3a);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .view-app-btn {
+      margin-left: auto;
+      background: linear-gradient(135deg, var(--green3), var(--moss));
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .view-app-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(74,124,89,0.35);
+    }
+    .card-wrap {
+      width: 100%;
+      max-width: 600px;
+      padding: 32px 16px;
+    }
+    .post-card {
+      background: #fff;
+      border-radius: 24px;
+      border: 1px solid rgba(139,94,60,0.1);
+      padding: 28px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.06);
+    }
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .avatar {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: linear-gradient(135deg, var(--earth4), var(--earth5));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 20px; color: #fff;
+      flex-shrink: 0;
+    }
+    .author-name {
+      font-weight: 700; font-size: 16px; color: var(--earth1);
+    }
+    .author-handle {
+      color: var(--stone); font-size: 14px; margin-top: 2px;
+    }
+    .post-text {
+      font-size: 18px;
+      line-height: 1.65;
+      color: var(--earth1);
+      margin-bottom: 18px;
+      word-break: break-word;
+    }
+    .post-media {
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 18px;
+      border: 1px solid rgba(139,94,60,0.1);
+    }
+    .post-media img, .post-media video {
+      width: 100%; max-height: 480px;
+      object-fit: cover; display: block;
+    }
+    .post-meta {
+      font-size: 13px;
+      color: var(--stone);
+      border-top: 1px solid rgba(139,94,60,0.08);
+      padding-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .share-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .share-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer;
+      border: 1px solid rgba(139,94,60,0.2);
+      background: var(--cream);
+      color: var(--earth2);
+      text-decoration: none;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .share-btn:hover { background: rgba(139,94,60,0.08); }
+    .cta-box {
+      margin-top: 28px;
+      background: linear-gradient(135deg, #1A2E1A, #2D1B0E);
+      border-radius: 20px;
+      padding: 28px;
+      text-align: center;
+      color: #F5ECD7;
+    }
+    .cta-box h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px; margin-bottom: 10px;
+    }
+    .cta-box p { font-size: 14px; color: rgba(245,236,215,0.75); margin-bottom: 20px; }
+    .cta-join {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--green3), var(--moss));
+      color: #fff;
+      border-radius: 20px;
+      padding: 12px 28px;
+      font-size: 15px; font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .cta-join:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(74,124,89,0.4); }
+  </style>
+</head>
+<body>
+
+  <nav class="nav-bar">
+    <a href="/" class="logo">
+      <div class="logo-icon-sm">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3C12 3 5 7 5 13C5 16.866 8.134 20 12 20C15.866 20 19 16.866 19 13C19 7 12 3 12 3Z" fill="rgba(255,255,255,0.9)"/>
+        </svg>
+      </div>
+      Rooted
+    </a>
+    <a href="/" class="view-app-btn">Open App →</a>
+  </nav>
+
+  <div class="card-wrap">
+    <div class="post-card">
+      <div class="post-header">
+        {% if author and author.profile_photo_url %}
+          <img src="{{ author.profile_photo_url }}" class="avatar" alt="{{ post.sender }}">
+        {% else %}
+          <div class="avatar">{{ post.sender[0] | upper }}</div>
+        {% endif %}
+        <div>
+          <div class="author-name">{{ post.sender }}</div>
+          <div class="author-handle">{{ post.handle }}</div>
+        </div>
+      </div>
+
+      {% if post.text %}
+        <p class="post-text">{{ post.text }}</p>
+      {% endif %}
+
+      {% if post.media_url %}
+        <div class="post-media">
+          {% if post.media_type == 'video' %}
+            <video src="{{ post.media_url }}" controls></video>
+          {% else %}
+            <img src="{{ post.media_url }}" alt="Post media">
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <div class="post-meta">
+        <span>❤️ {{ post.likes or 0 }} likes &nbsp;·&nbsp; 💬 {{ post.reply_count or 0 }} replies</span>
+        <span>🌿 {{ post.node or 'For You' }}</span>
+      </div>
+
+      <!-- Share buttons -->
+      <div class="share-row">
+        <button class="share-btn" onclick="copyLink()">🔗 Copy Link</button>
+        <a class="share-btn" href="https://wa.me/?text={{ og_title | urlencode }}%20{{ og_url | urlencode }}" target="_blank">💬 WhatsApp</a>
+        <a class="share-btn" href="https://twitter.com/intent/tweet?text={{ og_title | urlencode }}&url={{ og_url | urlencode }}" target="_blank">🐦 X / Twitter</a>
+      </div>
+    </div>
+
+    <!-- CTA for new users -->
+    <div class="cta-box">
+      <h2>Join the conversation on Rooted</h2>
+      <p>The internet's most authentic social feed. Connect with real people, share real stories.</p>
+      <a href="/login/google" class="cta-join">Sign in with Google — it's free</a>
+    </div>
+  </div>
+
+  <script>
+    function copyLink() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        const btn = event.target;
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => btn.textContent = '🔗 Copy Link', 2000);
+      });
+    }
+  </script>
+</body>
+</html>

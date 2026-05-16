@@ -1,0 +1,15 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" rx="16" fill="url(#ig-grad)"/>
+  <g transform="translate(14, 14) scale(1.5)">
+    <path d="M12 2C12 2 4 7 4 13.5C4 17.642 7.582 21 12 21C16.418 21 20 17.642 20 13.5C20 7 12 2 12 2Z" fill="#fff"/>
+  </g>
+  <defs>
+    <linearGradient id="ig-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f09433"/>
+      <stop offset="25%" stop-color="#e6683c"/>
+      <stop offset="50%" stop-color="#dc2743"/>
+      <stop offset="75%" stop-color="#cc2366"/>
+      <stop offset="100%" stop-color="#bc1888"/>
+    </linearGradient>
+  </defs>
+</svg>

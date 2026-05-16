@@ -1,0 +1,70 @@
+<!-- MAIN FEED AREA -->
+    <div class="main-feed" id="feedView">
+      <div class="feed-header">
+        <div style="display:flex; justify-content:space-between; align-items:center; height:60px;">
+          <span style="font-size: 18px; font-weight: 800;">Home</span>
+          <div style="display:flex; gap:16px;">
+            <span id="tabForYou" class="active" onclick="switchFeedTab('ForYou')"
+              style="cursor:pointer; font-size:14px; font-weight:700;">For you</span>
+            <span id="tabFollowing" onclick="switchFeedTab('Following')"
+              style="cursor:pointer; font-size:14px; font-weight:700; color:var(--text-dim);">Following</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stories-tray" id="storiesTray">
+        <div class="story-avatar-wrap" id="myStoryBubble" onclick="handleMyStoryClick(event)">
+          <div class="story-ring" id="myStoryRing" style="background:var(--border);">
+            {% if current_user.photo %}
+            <img src="{{ current_user.photo }}">
+            {% else %}
+            <div class="mini-avatar">{{ current_user.name[0] | upper }}</div>
+            {% endif %}
+            <div class="story-add-btn" id="myStoryAddBtn">+</div>
+          </div>
+          <div class="story-handle" id="myStoryLabel">Your Story</div>
+        </div>
+        <!-- JS rendered stories -->
+      </div>
+
+      <div class="composer" id="feedComposer">
+        <div class="composer-avatar">
+          {% if current_user.photo %}
+          <img src="{{ current_user.photo }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+          {% else %}
+          {{ current_user.name[0] | upper }}
+          {% endif %}
+        </div>
+        <div style="flex:1;">
+          <textarea class="composer-input" id="msgInput" placeholder="What's happening?"
+            oninput="autoResize(this)"></textarea>
+
+          <div class="upload-preview" id="uploadPreview">
+            <span id="uploadIcon" style="font-size:18px;">📷</span>
+            <div class="upload-bar-bg">
+              <div class="upload-bar" id="uploadBar"></div>
+            </div>
+            <span id="uploadPct">0%</span>
+            <button onclick="cancelUpload()">✕</button>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+            <div style="display:flex; gap:12px; color: var(--accent);">
+              <span onclick="document.getElementById('photoInput').click()"
+                style="cursor:pointer; font-size:20px;">🖼️</span>
+              <select id="nodeSelect"
+                style="background:none; border:none; color:var(--text-dim); font-size:13px; font-family:inherit; cursor:pointer; outline:none;">
+                <option value="For You">🌿 For You</option>
+                <option value="General">🌱 General</option>
+                <option value="Tech">💻 Tech</option>
+              </select>
+            </div>
+            <button class="btn-primary" id="sendBtn" onclick="createPost()">Post</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="posts-area" id="postsArea">
+        <!-- JS rendered posts -->
+      </div>
+    </div>

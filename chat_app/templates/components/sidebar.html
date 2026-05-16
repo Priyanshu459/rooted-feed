@@ -1,0 +1,85 @@
+<!-- LEFT SIDEBAR -->
+    <div class="left-sidebar">
+      <div class="app-logo" onclick="switchTab('feedView')">
+        <div class="logo-icon" style="width:32px;height:32px;border-radius:10px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3C12 3 5 7 5 13C5 16.866 8.134 20 12 20C15.866 20 19 16.866 19 13C19 7 12 3 12 3Z"
+              fill="#fff" />
+          </svg>
+        </div>
+        <span
+          style="font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -1px; background: var(--ig-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Rooted</span>
+      </div>
+
+      <div class="nav-item active" onclick="switchTab('feedView')" title="Home">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12L12 3L21 12V20C21 20.5523 20.5523 21 20 21H15V16H9V21H4C3.44772 21 3 20.5523 3 20V12Z" />
+        </svg>
+        <span>Home</span>
+      </div>
+
+      <div class="nav-item" onclick="switchTab('explore')" title="Explore">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8" />
+          <path d="M21 21L16.65 16.65" />
+        </svg>
+        <span>Explore</span>
+      </div>
+
+      <div class="nav-item" onclick="openNotifications()" title="Notifications" style="position:relative;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8A6 6 0 0 0 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+        <span>Notifications</span>
+        <div class="unread-badge" id="notifBadge" style="display:none; position:absolute; top:8px; left:28px;">0</div>
+      </div>
+
+      <div class="nav-item" onclick="openMessages()" title="Messages" style="position:relative;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span>Messages</span>
+        <div class="unread-badge" id="navBadge" style="display:none; position:absolute; top:8px; left:28px;">0</div>
+      </div>
+
+      <div class="nav-item" onclick="switchTab('aiView')" title="AI Assistant">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+          <path d="M2 17L12 22L22 17" />
+          <path d="M2 12L12 17L22 12" />
+        </svg>
+        <span>AI Assistant</span>
+      </div>
+
+      <div class="nav-item" onclick="goToMyProfile()" title="Profile">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+        <span>Profile</span>
+      </div>
+
+      <button class="btn-primary post-btn-large" onclick="openComposer()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        <span>Create</span>
+      </button>
+
+      <div class="user-profile-mini" title="Profile Details" onclick="openProfileEdit()">
+        {% if current_user.photo %}
+        <img src="{{ current_user.photo }}" class="mini-avatar" id="navAvatar" style="object-fit:cover;">
+        {% else %}
+        <div class="mini-avatar" id="navAvatar">{{ current_user.name[0] | upper }}</div>
+        {% endif %}
+        <div style="flex:1; min-width:0;">
+          <div
+            style="font-size:14px; font-weight:700; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            {{ current_user.name }}</div>
+          <div
+            style="font-size:12px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            {{ current_user.handle }}</div>
+        </div>
+      </div>
+    </div>

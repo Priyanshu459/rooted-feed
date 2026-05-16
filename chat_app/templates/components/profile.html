@@ -1,0 +1,45 @@
+<!-- PROFILE VIEW -->
+    <div class="main-feed" id="profileView" style="display:none; flex-direction:column;">
+      <div class="feed-header" style="display:flex; align-items:center; gap:16px;">
+        <span onclick="closeProfile()" style="cursor:pointer; font-size:24px;">&larr;</span>
+        <h2 id="profileViewName" style="font-size:20px; font-weight:700;">Profile</h2>
+      </div>
+      <div style="flex:1; overflow-y:auto;">
+        <div style="height:150px; background:var(--ig-grad); position:relative; overflow:hidden;" id="profileCoverWrap">
+          <img id="profileCoverImg" style="width:100%; height:100%; object-fit:cover; display:none;">
+          <button id="coverUploadBtn" onclick="document.getElementById('coverInput').click()"
+            style="position:absolute; bottom:12px; right:12px; background:rgba(0,0,0,0.5); color:#fff; border:none; padding:6px 12px; border-radius:16px; font-size:12px; cursor:pointer; display:none; backdrop-filter:blur(4px);">Change
+            Cover</button>
+          <input type="file" id="coverInput" accept="image/*" style="display:none;" onchange="uploadCoverPhoto(event)">
+        </div>
+        <div style="padding:0 24px 24px; position:relative; margin-top:-45px;">
+          <img id="profileViewAvatar"
+            style="width:90px; height:90px; border-radius:50%; border:4px solid var(--bg); background:#000;">
+          <div id="profileViewAvatarText"
+            style="width:90px; height:90px; border-radius:50%; border:4px solid var(--bg); background:#333; display:none; align-items:center; justify-content:center; font-size:32px; font-weight:700; color:#fff;">
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:12px;">
+            <div>
+              <h3 id="profileViewHandle" style="font-size:18px; font-weight:700; color:#fff;">@handle</h3>
+              <p id="profileViewBio" style="font-size:14px; color:var(--text-dim); margin-top:4px;">No bio yet.</p>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button id="editProfBtn" class="btn-primary" style="padding:8px 24px; border-radius:12px; font-weight:600; display:none;"
+                onclick="openProfileEdit()">Edit Profile</button>
+              <button id="followBtn" class="btn-primary" style="padding:8px 24px; border-radius:12px; font-weight:600;"
+                onclick="toggleFollow()">Follow</button>
+              <button id="messageBtn"
+                style="padding:8px 24px; border-radius:12px; font-weight:600; background:var(--surface-bright); border:none; color:#fff; cursor:pointer;"
+                onclick="startChat()">Message</button>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:16px; margin-top:16px; font-size:14px;">
+            <span><strong id="profFollowing" style="color:#fff;">0</strong> Following</span>
+            <span><strong id="profFollowers" style="color:#fff;">0</strong> Followers</span>
+          </div>
+        </div>
+        <div class="posts-area" id="profilePostsArea"></div>
+      </div>
+    </div>
