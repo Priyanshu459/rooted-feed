@@ -556,6 +556,27 @@ def get_user_profile(handle):
         'is_self': current_user.is_authenticated and current_user.id == user.id
     })
 
+@app.route('/api/search/users')
+def search_users():
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify([])
+        
+    users = User.query.filter(
+        (User.display_name.ilike(f'%{q}%')) | (User.handle.ilike(f'%{q}%'))
+    ).limit(20).all()
+    
+    results = []
+    for u in users:
+        results.append({
+            'handle': u.handle,
+            'name': u.display_name,
+            'photo': u.profile_photo_url,
+            'bio': u.bio
+        })
+    return jsonify(results)
+
+
 def post_to_dict(p, viewer_id=None, preloaded_users=None, preloaded_posts=None, preloaded_likes=None):
     if preloaded_users is not None:
         user = preloaded_users.get(p.handle)
