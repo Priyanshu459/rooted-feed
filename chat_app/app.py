@@ -467,17 +467,27 @@ def upload_file():
     
     if 'media' in request.files and request.files['media'].filename != '':
         file = request.files['media']
+        folder_map = {
+            'post': 'rooted/posts',
+            'profile': 'rooted/profiles',
+            'cover': 'rooted/covers',
+            'story': 'rooted/stories'
+        }
+        target_folder = folder_map.get(upload_type, 'rooted/others')
+
         try:
             if file.mimetype.startswith('video/'):
                 upload_result = cloudinary.uploader.upload(
                     file, 
                     resource_type="video",
+                    folder=target_folder,
                     transformation=[{"quality": "auto"}]
                 )
                 media_type = 'video'
             else:
                 upload_result = cloudinary.uploader.upload(
                     file,
+                    folder=target_folder,
                     transformation=[{"quality": "auto", "fetch_format": "auto"}]
                 )
                 media_type = 'image'
@@ -1559,8 +1569,39 @@ def ai_chat():
         err = str(e)
         if 'quota' in err.lower() or '429' in err or 'rate' in err.lower():
             return jsonify({'reply': '⏳ Rooted AI is resting a moment. Please try again in 30 seconds 🌿'})
-        # Show actual error for debugging
         return jsonify({'reply': f'AI Error: {err[:200]}'})
+
+
+@app.route('/api/webhook/media_moderation', methods=['POST'])
+def media_moderation_webhook():
+    """Webhook triggered by Cloudinary MediaFlows when AI detects NSFW/toxic content."""
+    try:
+        data = request.get_json(silent=True) or {}
+        asset_url = data.get('secure_url') or data.get('url')
+        reason = data.get('moderation_reason') or 'AI flagged inappropriate content'
+
+        if not asset_url:
+            return jsonify({'error': 'Missing media URL'}), 400
+
+        # Check Posts
+        post = Post.query.filter_by(media_url=asset_url).first()
+        if post:
+            post.text = f"[⚠️ This post was hidden by Automated Moderation: {reason}]"
+            post.media_url = None
+            db.session.commit()
+            socketio.emit('edit_post', {'id': post.id, 'text': post.text})
+            return jsonify({'success': True, 'action': 'post_hidden', 'id': post.id})
+
+        # Check Stories
+        story = Story.query.filter_by(media_url=asset_url).first()
+        if story:
+            db.session.delete(story)
+            db.session.commit()
+            return jsonify({'success': True, 'action': 'story_deleted'})
+
+        return jsonify({'success': True, 'action': 'no_match'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
