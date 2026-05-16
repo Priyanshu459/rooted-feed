@@ -1245,6 +1245,29 @@ def handle_join(user_data):
     batch = [post_to_dict(p, viewer_id, preloaded_users=preloaded_users, preloaded_posts=preloaded_posts, preloaded_likes=preloaded_likes) for p in batch_posts]
     emit('initial_posts', batch)
 
+# --- VIDEO CALL SIGNALING ---
+@socketio.on('initiate_call')
+def handle_initiate_call(data):
+    target_id = data.get('target_id')
+    room_id = data.get('room_id')
+    is_group = data.get('is_group', False)
+    payload = {
+        'room_id': room_id,
+        'caller_id': current_user.id,
+        'caller_name': current_user.display_name,
+        'caller_avatar': current_user.profile_photo_url,
+        'is_group': is_group
+    }
+    if is_group:
+        emit('incoming_call', payload, room=f"group_{target_id}", include_self=False)
+    else:
+        emit('incoming_call', payload, room=f"user_{target_id}")
+
+@socketio.on('reject_call')
+def handle_reject_call(data):
+    caller_id = data.get('caller_id')
+    emit('call_rejected', {'responder_id': current_user.id}, room=f"user_{caller_id}")
+
 @socketio.on('create_post')
 def handle_create_post(data):
     post_id = str(int(time.time() * 1000))

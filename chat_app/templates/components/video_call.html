@@ -1,0 +1,205 @@
+<!-- ZEGOCLOUD VIDEO CALL COMPONENT -->
+<!-- SDK served from our own static files to comply with Content Security Policy -->
+
+<!-- Incoming Call Modal -->
+<div id="incomingCallModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); z-index:9999; flex-direction:column; justify-content:center; align-items:center;">
+    <div style="padding:40px; border-radius:24px; text-align:center; max-width:400px; width:90%; background:#1a1a1a; border:1px solid rgba(255,255,255,0.12); box-shadow:0 24px 48px rgba(0,0,0,0.6);">
+        <div style="margin-bottom:20px;">
+            <img id="incomingCallAvatar" src="" alt="" style="width:90px; height:90px; border-radius:50%; object-fit:cover; border:3px solid #c13584; display:none; margin:0 auto;">
+            <div id="incomingCallAvatarText" style="width:90px; height:90px; border-radius:50%; background:linear-gradient(135deg,#c13584,#833ab4); display:none; align-items:center; justify-content:center; font-size:36px; font-weight:700; color:white; margin:0 auto;"></div>
+        </div>
+        <h2 id="incomingCallName" style="color:white; font-size:22px; font-weight:700; margin:0 0 8px;">Calling...</h2>
+        <p id="incomingCallType" style="color:#999; font-size:15px; margin:0 0 32px;">Incoming Video Call</p>
+        <div style="display:flex; justify-content:center; gap:32px;">
+            <div style="text-align:center;">
+                <button onclick="rejectCall()" style="width:60px; height:60px; border-radius:50%; background:#FF3B30; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(255,59,48,0.45); margin:0 auto 8px;">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(135deg)"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </button>
+                <span style="color:#999; font-size:12px;">Decline</span>
+            </div>
+            <div style="text-align:center;">
+                <button onclick="acceptCall()" style="width:60px; height:60px; border-radius:50%; background:#34C759; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(52,199,89,0.45); margin:0 auto 8px;">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                </button>
+                <span style="color:#999; font-size:12px;">Accept</span>
+            </div>
+        </div>
+    </div>
+    <audio id="ringtoneAudio" loop>
+        <source src="https://actions.google.com/sounds/v1/alarms/spaceship_alarm.ogg" type="audio/ogg">
+    </audio>
+</div>
+
+<!-- Floating Active Call Window -->
+<div id="floatingVideoCall" style="display:none; position:fixed; right:20px; bottom:20px; width:360px; height:580px; background:#000; border-radius:16px; overflow:hidden; z-index:9000; box-shadow:0 20px 50px rgba(0,0,0,0.7); border:1px solid rgba(255,255,255,0.1);">
+    <div id="videoCallHeader" style="position:absolute; top:0; left:0; right:0; height:44px; background:linear-gradient(180deg,rgba(0,0,0,0.85) 0%,transparent 100%); z-index:9001; cursor:move; display:flex; align-items:center; justify-content:space-between; padding:0 14px;">
+        <span style="color:white; font-size:13px; font-weight:600;">🌿 Rooted Video</span>
+        <button onclick="minimizeVideoCall()" style="background:rgba(255,255,255,0.15); border:none; color:white; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Minimize">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+    </div>
+    <div id="zego-video-container" style="width:100%; height:100%;"></div>
+</div>
+
+<script>
+(function () {
+    var ZEGO_APP_ID = 278915575;
+    var ZEGO_SERVER_SECRET = "98cb194d146f83bde8fd907ec054b77c";
+
+    var currentCallRoomId = null;
+    var incomingCallData = null;
+    var zpInstance = null;
+    var isMinimized = false;
+
+    // ── Called when user clicks 🎥 button ────────────────────────────────────
+    window.startVideoCall = function () {
+        if (!window.ZegoUIKitPrebuilt) {
+            showNotif('Video call SDK is not ready yet. Please refresh the page.', 'error');
+            return;
+        }
+        if (typeof currentChatTarget === 'undefined' || !currentChatTarget) {
+            showNotif('Open a chat first, then click Video Call.');
+            return;
+        }
+
+        var isGroup = (typeof currentChatTargetIsGroup !== 'undefined') && currentChatTargetIsGroup;
+        currentCallRoomId = 'rooted_' + Date.now().toString();
+        var targetId = String(currentChatTarget).replace('group_', '');
+
+        socket.emit('initiate_call', {
+            target_id: targetId,
+            room_id: currentCallRoomId,
+            is_group: isGroup
+        });
+
+        showNotif('Calling... 📞');
+        joinZegoRoom(currentCallRoomId, isGroup);
+    };
+
+    // ── Incoming call via socket ──────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof socket === 'undefined') return;
+
+        socket.on('incoming_call', function (data) {
+            incomingCallData = data;
+            var avatarImg = document.getElementById('incomingCallAvatar');
+            var avatarTxt = document.getElementById('incomingCallAvatarText');
+            if (data.caller_avatar) {
+                avatarImg.src = data.caller_avatar;
+                avatarImg.style.display = 'block';
+                avatarTxt.style.display = 'none';
+            } else {
+                avatarTxt.textContent = (data.caller_name || '?')[0].toUpperCase();
+                avatarTxt.style.display = 'flex';
+                avatarImg.style.display = 'none';
+            }
+            document.getElementById('incomingCallName').textContent = data.caller_name || 'Someone';
+            document.getElementById('incomingCallType').textContent = data.is_group ? 'Incoming Group Video Call' : 'Incoming Video Call';
+            document.getElementById('incomingCallModal').style.display = 'flex';
+            document.getElementById('ringtoneAudio').play().catch(function () {});
+        });
+
+        socket.on('call_rejected', function () {
+            showNotif('Call was declined.');
+            closeVideoCallWindow();
+        });
+    });
+
+    window.acceptCall = function () {
+        if (!incomingCallData) return;
+        document.getElementById('incomingCallModal').style.display = 'none';
+        document.getElementById('ringtoneAudio').pause();
+        var data = incomingCallData;
+        incomingCallData = null;
+        joinZegoRoom(data.room_id, data.is_group);
+    };
+
+    window.rejectCall = function () {
+        document.getElementById('incomingCallModal').style.display = 'none';
+        document.getElementById('ringtoneAudio').pause();
+        if (incomingCallData) {
+            socket.emit('reject_call', { caller_id: incomingCallData.caller_id });
+            incomingCallData = null;
+        }
+    };
+
+    function joinZegoRoom(roomID, isGroup) {
+        var cu = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+        var userID = String(cu.id || cu.uuid || (Math.floor(Math.random() * 99999) + ''));
+        var userName = String(cu.name || cu.handle || 'Rooted User');
+
+        if (zpInstance) {
+            try { zpInstance.destroy(); } catch (e) {}
+            zpInstance = null;
+            var old = document.getElementById('zego-video-container');
+            old.parentNode.replaceChild(old.cloneNode(false), old);
+        }
+
+        var kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+            ZEGO_APP_ID, ZEGO_SERVER_SECRET, String(roomID), userID, userName
+        );
+
+        zpInstance = ZegoUIKitPrebuilt.create(kitToken);
+        document.getElementById('floatingVideoCall').style.display = 'block';
+
+        zpInstance.joinRoom({
+            container: document.getElementById('zego-video-container'),
+            turnOnMicrophoneWhenJoining: true,
+            turnOnCameraWhenJoining: true,
+            showMyCameraToggleButton: true,
+            showMyMicrophoneToggleButton: true,
+            showAudioVideoSettingsButton: true,
+            showScreenSharingButton: true,
+            showTextChat: true,
+            showUserList: true,
+            maxUsers: isGroup ? 10 : 2,
+            layout: "Auto",
+            showLayoutButton: false,
+            showPreJoinView: false,
+            scenario: {
+                mode: isGroup ? ZegoUIKitPrebuilt.VideoConference : ZegoUIKitPrebuilt.OneONoneCall,
+                config: { role: "Host" }
+            },
+            onLeaveRoom: function () { closeVideoCallWindow(); }
+        });
+    }
+
+    function closeVideoCallWindow() {
+        document.getElementById('floatingVideoCall').style.display = 'none';
+        if (zpInstance) {
+            try { zpInstance.destroy(); } catch (e) {}
+            zpInstance = null;
+        }
+    }
+
+    window.minimizeVideoCall = function () {
+        var win = document.getElementById('floatingVideoCall');
+        if (!isMinimized) {
+            win.style.width = '180px'; win.style.height = '110px'; isMinimized = true;
+        } else {
+            win.style.width = '360px'; win.style.height = '580px'; isMinimized = false;
+        }
+    };
+
+    // Draggable
+    document.addEventListener('DOMContentLoaded', function () {
+        var win = document.getElementById('floatingVideoCall');
+        var header = document.getElementById('videoCallHeader');
+        if (!win || !header) return;
+        var p1 = 0, p2 = 0, p3 = 0, p4 = 0;
+        header.onmousedown = function (e) {
+            if (e.target.closest && e.target.closest('button')) return;
+            e.preventDefault();
+            p3 = e.clientX; p4 = e.clientY;
+            document.onmouseup = function () { document.onmouseup = null; document.onmousemove = null; };
+            document.onmousemove = function (e) {
+                p1 = p3 - e.clientX; p2 = p4 - e.clientY;
+                p3 = e.clientX; p4 = e.clientY;
+                win.style.top = (win.offsetTop - p2) + 'px';
+                win.style.left = (win.offsetLeft - p1) + 'px';
+                win.style.bottom = 'auto'; win.style.right = 'auto';
+            };
+        };
+    });
+}());
+</script>
