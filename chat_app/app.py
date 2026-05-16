@@ -494,7 +494,9 @@ def upload_file():
                     "gravity": "south_east", "x": 20, "y": 20, "color": "white", "opacity": 70
                 })
 
-            if file.mimetype.startswith('video/'):
+            is_video = file.mimetype.startswith('video/') or file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv'))
+            
+            if is_video:
                 # Avoid text overlays on videos as they cause synchronous uploads to timeout or buffer
                 upload_result = cloudinary.uploader.upload(
                     file, 
