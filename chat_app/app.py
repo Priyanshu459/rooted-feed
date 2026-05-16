@@ -1254,20 +1254,25 @@ def handle_join(user_data):
 # --- VIDEO CALL SIGNALING ---
 @socketio.on('initiate_call')
 def handle_initiate_call(data):
-    target_id = data.get('target_id')
-    room_id = data.get('room_id')
-    is_group = data.get('is_group', False)
+    target_id = data.get('target_id')   # could be handle (@user) or group id
+    room_id   = data.get('room_id')
+    is_group  = data.get('is_group', False)
+
     payload = {
-        'room_id': room_id,
-        'caller_id': current_user.id,
-        'caller_name': current_user.display_name,
+        'room_id':       room_id,
+        'caller_id':     current_user.id,
+        'caller_name':   current_user.display_name,
         'caller_avatar': current_user.profile_photo_url,
-        'is_group': is_group
+        'is_group':      is_group
     }
+
     if is_group:
         emit('incoming_call', payload, room=f"group_{target_id}", include_self=False)
     else:
-        emit('incoming_call', payload, room=f"user_{target_id}")
+        # target_id is a handle string — look up the actual DB user id
+        target_user = find_user_by_handle(target_id)
+        if target_user:
+            emit('incoming_call', payload, room=f"user_{target_user.id}")
 
 @socketio.on('reject_call')
 def handle_reject_call(data):
