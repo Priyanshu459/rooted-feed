@@ -556,27 +556,40 @@ def get_user_profile(handle):
         'is_self': current_user.is_authenticated and current_user.id == user.id
     })
 
-def post_to_dict(p, viewer_id=None):
-    user = User.query.filter_by(handle=p.handle).first()
+def post_to_dict(p, viewer_id=None, preloaded_users=None, preloaded_posts=None, preloaded_likes=None):
+    if preloaded_users is not None:
+        user = preloaded_users.get(p.handle)
+    else:
+        user = User.query.filter_by(handle=p.handle).first()
+        
     sender_name = user.display_name if user else p.sender
     sender_photo = user.profile_photo_url if user else None
     
     reply_to_handle = None
     if p.parent_id:
-        parent_post = Post.query.get(p.parent_id)
+        if preloaded_posts is not None:
+            parent_post = preloaded_posts.get(p.parent_id)
+        else:
+            parent_post = Post.query.get(p.parent_id)
         if parent_post:
             reply_to_handle = parent_post.handle
             
     retweeted_from = None
     if p.is_retweet and p.original_post_id:
-        orig = Post.query.get(p.original_post_id)
+        if preloaded_posts is not None:
+            orig = preloaded_posts.get(p.original_post_id)
+        else:
+            orig = Post.query.get(p.original_post_id)
         if orig:
             retweeted_from = orig.handle
 
     # Check if the current viewer has already liked this post
     user_liked = False
     if viewer_id:
-        user_liked = PostLike.query.filter_by(user_id=viewer_id, post_id=p.id).first() is not None
+        if preloaded_likes is not None:
+            user_liked = p.id in preloaded_likes
+        else:
+            user_liked = PostLike.query.filter_by(user_id=viewer_id, post_id=p.id).first() is not None
             
     return {
         'id': p.id,
@@ -1063,6 +1076,10 @@ def handle_join(user_data):
     # Fetch top 200 recent posts
     recent_posts = Post.query.order_by(Post.timestamp.desc()).limit(200).all()
     
+    # Pre-load all users to prevent N+1 queries
+    handles = list(set([p.handle for p in recent_posts]))
+    preloaded_users = {u.handle: u for u in User.query.filter(User.handle.in_(handles)).all()}
+    
     # Filter private posts
     visible_posts = []
     followed_handles = []
@@ -1072,7 +1089,7 @@ def handle_join(user_data):
         viewer_id = current_user.id
         
     for p in recent_posts:
-        user = User.query.filter_by(handle=p.handle).first()
+        user = preloaded_users.get(p.handle)
         if user and user.is_private:
             if not current_user.is_authenticated:
                 continue
@@ -1083,8 +1100,22 @@ def handle_join(user_data):
     # Sort strictly by timestamp (Newest First)
     visible_posts.sort(key=lambda p: p.timestamp, reverse=True)
     
+    batch_posts = visible_posts[:100]
+    
+    # Pre-load related posts (parents and retweets) to prevent N+1 queries
+    parent_ids = [p.parent_id for p in batch_posts if p.parent_id]
+    retweet_ids = [p.original_post_id for p in batch_posts if p.is_retweet and p.original_post_id]
+    all_related_ids = list(set(parent_ids + retweet_ids))
+    preloaded_posts = {p.id: p for p in Post.query.filter(Post.id.in_(all_related_ids)).all()} if all_related_ids else {}
+    
+    # Pre-load user likes to prevent N+1 queries
+    preloaded_likes = set()
+    if viewer_id and batch_posts:
+        likes = PostLike.query.filter_by(user_id=viewer_id).filter(PostLike.post_id.in_([p.id for p in batch_posts])).all()
+        preloaded_likes = {l.post_id for l in likes}
+    
     # Send top 100 as a batch
-    batch = [post_to_dict(p, viewer_id) for p in visible_posts[:100]]
+    batch = [post_to_dict(p, viewer_id, preloaded_users=preloaded_users, preloaded_posts=preloaded_posts, preloaded_likes=preloaded_likes) for p in batch_posts]
     emit('initial_posts', batch)
 
 @socketio.on('create_post')
