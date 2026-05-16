@@ -1,5 +1,5 @@
 // Caches static assets for offline support and faster loading
-const CACHE_NAME = 'rooted-v4';
+const CACHE_NAME = 'rooted-v5';
 const STATIC_ASSETS = [
   '/',
   '/static/manifest.json',
