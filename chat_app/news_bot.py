@@ -10,25 +10,32 @@ from app import app, db, User, Post
 # Configure your RSS feeds here
 RSS_FEEDS = [
     {
-        "url": "http://feeds.bbci.co.uk/news/world/rss.xml",
-        "node": "World News",
-        "bot_handle": "@RootedNews",
-        "bot_name": "Rooted News 🌍",
-        "bot_photo": "https://images.unsplash.com/photo-1495020689067-958852a7765e?w=200&h=200&fit=crop"
+        "url": "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms",
+        "node": "India News",
+        "bot_handle": "@IndiaNews",
+        "bot_name": "Rooted India 🇮🇳",
+        "bot_photo": "https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?w=200&h=200&fit=crop"
     },
     {
-        "url": "https://techcrunch.com/feed/",
+        "url": "https://timesofindia.indiatimes.com/rssfeeds/1081479906.cms",
+        "node": "Entertainment",
+        "bot_handle": "@RootedEnt",
+        "bot_name": "Rooted Entertainment 🎬",
+        "bot_photo": "https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=200&h=200&fit=crop"
+    },
+    {
+        "url": "https://timesofindia.indiatimes.com/rssfeeds/2647163.cms", 
+        "node": "Environment",
+        "bot_handle": "@RootedNature",
+        "bot_name": "Rooted Environment 🌿",
+        "bot_photo": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200&h=200&fit=crop"
+    },
+    {
+        "url": "https://timesofindia.indiatimes.com/rssfeeds/66949542.cms",
         "node": "Technology",
         "bot_handle": "@RootedTech",
         "bot_name": "Rooted Tech 💻",
         "bot_photo": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop"
-    },
-    {
-        "url": "https://www.treehugger.com/feed",  # Nature/Environment
-        "node": "Environment",
-        "bot_handle": "@RootedNature",
-        "bot_name": "Rooted Nature 🌿",
-        "bot_photo": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200&h=200&fit=crop"
     }
 ]
 
