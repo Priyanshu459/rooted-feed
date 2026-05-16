@@ -87,6 +87,18 @@ def run_bot():
                 # Format the text to look nice on Rooted
                 text = f"**{title}**\n\n{description}\n\nRead more: {link}"
                 
+                # Ensure the text is under 500 characters for the database schema
+                if len(text) > 495:
+                    allowed_desc_len = max(0, 495 - len(title) - len(link) - 30)
+                    if allowed_desc_len > 10:
+                        short_desc = description[:allowed_desc_len] + "..."
+                        text = f"**{title}**\n\n{short_desc}\n\nRead more: {link}"
+                    else:
+                        # Description is too long, cut it entirely and truncate title if necessary
+                        allowed_title_len = max(0, 495 - len(link) - 20)
+                        short_title = title[:allowed_title_len] + "..." if len(title) > allowed_title_len else title
+                        text = f"**{short_title}**\n\nRead more: {link}"
+                
                 # Try to extract a thumbnail image URL from the RSS feed
                 media_url = None
                 if 'media_content' in entry and len(entry.media_content) > 0:
