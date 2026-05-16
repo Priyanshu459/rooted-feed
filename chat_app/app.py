@@ -469,10 +469,17 @@ def upload_file():
         file = request.files['media']
         try:
             if file.mimetype.startswith('video/'):
-                upload_result = cloudinary.uploader.upload(file, resource_type="video")
+                upload_result = cloudinary.uploader.upload(
+                    file, 
+                    resource_type="video",
+                    transformation=[{"quality": "auto"}]
+                )
                 media_type = 'video'
             else:
-                upload_result = cloudinary.uploader.upload(file)
+                upload_result = cloudinary.uploader.upload(
+                    file,
+                    transformation=[{"quality": "auto", "fetch_format": "auto"}]
+                )
                 media_type = 'image'
             url = upload_result.get('secure_url')
         except Exception as e:
