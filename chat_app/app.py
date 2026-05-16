@@ -707,59 +707,6 @@ def get_following():
     following = [{'handle': u.handle, 'name': u.display_name} for u in current_user.followed.all()]
     return jsonify(following)
 
-@app.route('/api/trending')
-def get_trending():
-    from sqlalchemy import func
-    # Get top 5 most popular nodes/topics
-    trends = db.session.query(Post.node, func.count(Post.id).label('count')) \
-        .group_by(Post.node) \
-        .order_by(func.count(Post.id).desc()) \
-        .limit(5).all()
-        
-    result = []
-    for t in trends:
-        # Ignore empty nodes
-        if t.node and t.node.strip():
-            result.append({
-                'category': 'Topic',
-                'name': t.node,
-                'count': t.count
-            })
-    return jsonify(result)
-
-@app.route('/api/who_to_follow')
-def get_who_to_follow():
-    if not current_user.is_authenticated:
-        # If not logged in, just suggest top 5 bots or random users
-        users = User.query.limit(5).all()
-        return jsonify([{'handle': u.handle, 'name': u.display_name, 'photo': u.profile_photo_url, 'followers': u.followers.count()} for u in users])
-        
-    # Get all users
-    all_users = User.query.filter(User.id != current_user.id).all()
-    
-    # Filter out users we already follow or requested
-    followed = current_user.followed.all()
-    requested = current_user.requests_sent.all()
-    
-    suggested = []
-    for u in all_users:
-        if u not in followed and u not in requested:
-            suggested.append(u)
-            
-    # Sort by follower count
-    suggested.sort(key=lambda u: u.followers.count(), reverse=True)
-    
-    # Return top 5
-    result = []
-    for u in suggested[:5]:
-        result.append({
-            'handle': u.handle,
-            'name': u.display_name,
-            'photo': u.profile_photo_url,
-            'followers': u.followers.count()
-        })
-    return jsonify(result)
-
 @app.route('/api/unfollow/<handle>', methods=['POST'])
 @login_required
 def unfollow_user(handle):
