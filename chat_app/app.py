@@ -476,19 +476,39 @@ def upload_file():
         target_folder = folder_map.get(upload_type, 'rooted/others')
 
         try:
+            base_transform = []
+            
+            # 1. Profile Photo: AI Face Cropping
+            if upload_type == 'profile' and not file.mimetype.startswith('video/'):
+                base_transform.append({"gravity": "face", "height": 400, "width": 400, "crop": "thumb", "zoom": "0.8"})
+            
+            # 2. Cover Photo: Smart Banner Cropping
+            elif upload_type == 'cover' and not file.mimetype.startswith('video/'):
+                base_transform.append({"gravity": "auto", "height": 300, "width": 900, "crop": "fill"})
+                
+            # 3. Post Image: Automated Watermarking with Handle
+            elif upload_type == 'post' and not file.mimetype.startswith('video/') and current_user.is_authenticated:
+                # Add handle as a watermark in bottom right
+                base_transform.append({
+                    "overlay": {"font_family": "Arial", "font_size": 30, "font_weight": "bold", "text": f"@{current_user.handle}"},
+                    "gravity": "south_east", "x": 20, "y": 20, "color": "white", "opacity": 70
+                })
+
             if file.mimetype.startswith('video/'):
+                transform = base_transform + [{"quality": "auto"}]
                 upload_result = cloudinary.uploader.upload(
                     file, 
                     resource_type="video",
                     folder=target_folder,
-                    transformation=[{"quality": "auto"}]
+                    transformation=transform
                 )
                 media_type = 'video'
             else:
+                transform = base_transform + [{"quality": "auto", "fetch_format": "auto"}]
                 upload_result = cloudinary.uploader.upload(
                     file,
                     folder=target_folder,
-                    transformation=[{"quality": "auto", "fetch_format": "auto"}]
+                    transformation=transform
                 )
                 media_type = 'image'
             url = upload_result.get('secure_url')
