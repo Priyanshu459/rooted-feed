@@ -271,6 +271,20 @@ button {
     object-fit: contain;
 }
 
+.post-media {
+    margin-top: 12px;
+    margin-bottom: 12px;
+    width: 100%;
+}
+
+.post-media img, .post-media video {
+    width: 100%;
+    max-height: 500px;
+    object-fit: cover;
+    border-radius: 12px;
+    background-color: #000;
+}
+
 /* Chat Footer & Input */
 .chat-footer {
     padding: 20px 24px;

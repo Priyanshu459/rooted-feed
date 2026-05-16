@@ -495,12 +495,12 @@ def upload_file():
                 })
 
             if file.mimetype.startswith('video/'):
-                transform = base_transform + [{"quality": "auto"}]
+                # Avoid text overlays on videos as they cause synchronous uploads to timeout or buffer
                 upload_result = cloudinary.uploader.upload(
                     file, 
                     resource_type="video",
                     folder=target_folder,
-                    transformation=transform
+                    transformation=[{"quality": "auto"}]
                 )
                 media_type = 'video'
             else:
