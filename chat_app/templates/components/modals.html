@@ -660,11 +660,28 @@
         updateSEO(`${name || handle} (@${handle})`, `${name}'s profile on Rooted Feed. Where stories take root.`);
 
         const pArea = document.getElementById('profilePostsArea');
-        pArea.innerHTML = ''; // clear
+        pArea.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-dim);">Loading posts...</div>';
 
-        // Filter and render
-        const userPosts = ALL_POSTS.filter(p => p.handle === handle || p.retweetedFrom === handle);
-        userPosts.forEach(p => addPostToFeed(p, false, 'profilePostsArea'));
+        // Always fetch from server so old posts beyond the cached batch are shown
+        fetch(`/api/posts/user/${encodeURIComponent(handle)}`)
+          .then(r => r.json())
+          .then(posts => {
+            pArea.innerHTML = '';
+            if (!posts.length) {
+              pArea.innerHTML = `<div style="text-align:center;padding:48px;color:var(--stone);">
+                <div style="font-size:48px;margin-bottom:16px;">🌱</div>
+                <div style="font-size:18px;font-weight:600;color:var(--earth1);">No posts yet</div>
+              </div>`;
+            } else {
+              posts.forEach(p => addPostToFeed(p, false, 'profilePostsArea'));
+            }
+          })
+          .catch(() => {
+            // Fallback: show cached posts if API fails
+            pArea.innerHTML = '';
+            const userPosts = ALL_POSTS.filter(p => p.handle === handle || p.retweetedFrom === handle);
+            userPosts.forEach(p => addPostToFeed(p, false, 'profilePostsArea'));
+          });
       }
 
       function closeProfile() {

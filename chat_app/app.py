@@ -707,6 +707,43 @@ def get_following():
     following = [{'handle': u.handle, 'name': u.display_name} for u in current_user.followed.all()]
     return jsonify(following)
 
+@app.route('/api/posts/user/<handle>')
+def get_user_posts(handle):
+    """Return all posts for a given handle, newest first."""
+    clean = handle.lstrip('@')
+    handles = [clean, '@' + clean]
+
+    posts = Post.query.filter(
+        Post.handle.in_(handles)
+    ).order_by(Post.timestamp.desc()).limit(200).all()
+
+    viewer_id = current_user.id if current_user.is_authenticated else None
+
+    user_obj = User.query.filter(User.handle.in_(handles)).first()
+    preloaded_users = {h: user_obj for h in handles} if user_obj else {}
+
+    related_ids = list(set(
+        [p.parent_id for p in posts if p.parent_id] +
+        [p.original_post_id for p in posts if p.is_retweet and p.original_post_id]
+    ))
+    preloaded_posts = {p.id: p for p in Post.query.filter(Post.id.in_(related_ids)).all()} if related_ids else {}
+
+    preloaded_likes = set()
+    if viewer_id and posts:
+        likes = PostLike.query.filter_by(user_id=viewer_id).filter(
+            PostLike.post_id.in_([p.id for p in posts])
+        ).all()
+        preloaded_likes = {lk.post_id for lk in likes}
+
+    result = [
+        post_to_dict(p, viewer_id,
+                     preloaded_users=preloaded_users,
+                     preloaded_posts=preloaded_posts,
+                     preloaded_likes=preloaded_likes)
+        for p in posts
+    ]
+    return jsonify(result)
+
 @app.route('/api/unfollow/<handle>', methods=['POST'])
 @login_required
 def unfollow_user(handle):
