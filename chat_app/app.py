@@ -615,6 +615,12 @@ def search_users():
         })
     return jsonify(results)
 
+@app.route('/call')
+@login_required
+def video_call_page():
+    """Standalone video call page — opens in a popup, avoids CSP/module conflicts."""
+    return render_template('video_call_page.html')
+
 
 def post_to_dict(p, viewer_id=None, preloaded_users=None, preloaded_posts=None, preloaded_likes=None):
     if preloaded_users is not None:

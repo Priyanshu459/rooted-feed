@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rooted Video Call</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; width: 100vw; height: 100vh; overflow: hidden; }
+    #root { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- ZegoCloud SDK loaded directly — no CSP conflict in this standalone page -->
+  <script src="/static/js/zego-uikit-prebuilt.js"></script>
+  <script>
+    // Read room info from URL query parameters
+    function getParam(name) {
+      return new URLSearchParams(window.location.search).get(name) || '';
+    }
+
+    var roomID      = getParam('roomID') || ('room_' + Math.floor(Math.random() * 99999));
+    var userID      = getParam('userID') || ('user_' + Math.floor(Math.random() * 99999));
+    var userName    = getParam('userName') || 'Rooted User';
+    var isGroup     = getParam('isGroup') === 'true';
+    var appID       = 278915575;
+    var serverSecret = "98cb194d146f83bde8fd907ec054b77c";
+
+    var kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+      appID, serverSecret, roomID, userID, userName
+    );
+
+    var zp = ZegoUIKitPrebuilt.create(kitToken);
+    zp.joinRoom({
+      container: document.getElementById('root'),
+      turnOnMicrophoneWhenJoining: true,
+      turnOnCameraWhenJoining: true,
+      showMyCameraToggleButton: true,
+      showMyMicrophoneToggleButton: true,
+      showAudioVideoSettingsButton: true,
+      showScreenSharingButton: true,
+      showTextChat: true,
+      showUserList: true,
+      maxUsers: isGroup ? 10 : 2,
+      layout: "Auto",
+      showLayoutButton: false,
+      scenario: {
+        mode: isGroup ? ZegoUIKitPrebuilt.VideoConference : ZegoUIKitPrebuilt.OneONoneCall,
+        config: { role: "Host" }
+      },
+      sharedLinks: [{
+        name: 'Invite link',
+        url: window.location.href
+      }],
+      onLeaveRoom: function() { window.close(); }
+    });
+  </script>
+</body>
+</html>
