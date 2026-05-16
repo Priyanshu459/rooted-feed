@@ -528,6 +528,60 @@
 
       let currentFeedTab = 'ForYou';
       let followingPosts = []; // cache for following tab
+      let followingOldestTimestamp = null; // cursor for pagination
+      let followingHasMore = false;
+      let followingLoading = false;
+
+      function loadFollowingPosts(before = null) {
+        if (followingLoading) return;
+        followingLoading = true;
+        const area = document.getElementById('postsArea');
+        const loadMoreBtn = document.getElementById('followingLoadMoreBtn');
+        if (loadMoreBtn) loadMoreBtn.disabled = true;
+
+        const url = before ? `/api/posts/following?before=${before}` : '/api/posts/following';
+        fetch(url)
+          .then(r => r.json())
+          .then(data => {
+            followingLoading = false;
+            const posts = data.posts || [];
+            followingHasMore = data.has_more || false;
+
+            if (!before && posts.length === 0) {
+              area.innerHTML = `
+                <div style="text-align:center; padding:48px; color:var(--stone);">
+                  <div style="font-size:48px; margin-bottom:16px;">🌱</div>
+                  <div style="font-size:18px; font-weight:600; color:var(--earth1);">Nothing here yet</div>
+                  <div style="font-size:14px; margin-top:8px;">Follow people to see their posts here.</div>
+                </div>`;
+              return;
+            }
+
+            // Remove old load-more button before appending new posts
+            const oldBtn = document.getElementById('followingLoadMoreBtn');
+            if (oldBtn) oldBtn.remove();
+
+            posts.forEach(p => addPostToFeed(p, false, 'postsArea'));
+
+            if (posts.length > 0) {
+              followingOldestTimestamp = posts[posts.length - 1].timestamp;
+            }
+
+            // Add Load More button if there are more posts
+            if (followingHasMore) {
+              const btn = document.createElement('div');
+              btn.id = 'followingLoadMoreBtn';
+              btn.innerHTML = `<button onclick="loadFollowingPosts(followingOldestTimestamp)" style="display:block; margin:16px auto 32px; padding:12px 32px; border-radius:20px; background:var(--surface-bright); border:1px solid var(--border); color:var(--text-main); font-size:14px; font-weight:600; cursor:pointer;">Load older posts ↓</button>`;
+              area.appendChild(btn);
+            } else if (posts.length > 0) {
+              const end = document.createElement('div');
+              end.style = 'text-align:center;padding:24px;color:var(--stone);font-size:13px;';
+              end.textContent = "You've seen all posts 🌿";
+              area.appendChild(end);
+            }
+          })
+          .catch(() => { followingLoading = false; });
+      }
 
       function switchFeedTab(tab) {
         currentFeedTab = tab;
@@ -554,22 +608,12 @@
             socket.emit('join', {});
           }
         } else {
+          area.innerHTML = '';
+          followingOldestTimestamp = null;
+          followingHasMore = false;
+          followingLoading = false;
           showSkeletons('postsArea', 3);
-          fetch('/api/posts/following')
-            .then(r => r.json())
-            .then(posts => {
-              followingPosts = posts;
-              if (posts.length === 0) {
-                area.innerHTML = `
-                <div style="text-align:center; padding:48px; color:var(--stone);">
-                  <div style="font-size:48px; margin-bottom:16px;">🌱</div>
-                  <div style="font-size:18px; font-weight:600; color:var(--earth1);">Nothing here yet</div>
-                  <div style="font-size:14px; margin-top:8px;">Follow people to see their posts here.</div>
-                </div>`;
-              } else {
-                posts.forEach(p => addPostToFeed(p, false, 'postsArea'));
-              }
-            });
+          loadFollowingPosts();
         }
       }
 

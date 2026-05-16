@@ -662,17 +662,47 @@ def modify_post(post_id):
 @app.route('/api/posts/following')
 @login_required
 def get_following_posts():
-    # current_user.followed is a dynamic relationship, so it's a query
     followed_users = current_user.followed.all()
     followed_handles = [u.handle for u in followed_users]
     # Include own posts
     followed_handles.append(current_user.handle)
-    
-    posts = Post.query.filter(Post.handle.in_(followed_handles)).order_by(Post.timestamp.desc()).limit(100).all()
-    
-    viewer_id = current_user.id if current_user.is_authenticated else None
-    res = [post_to_dict(p, viewer_id) for p in posts]
-    return jsonify(res)
+
+    # Cursor-based pagination: `before` is a timestamp (ms)
+    before = request.args.get('before', type=int)
+    limit = request.args.get('limit', default=30, type=int)
+
+    query = Post.query.filter(Post.handle.in_(followed_handles))
+    if before:
+        query = query.filter(Post.timestamp < before)
+    posts = query.order_by(Post.timestamp.desc()).limit(limit).all()
+
+    viewer_id = current_user.id
+
+    # Preload users
+    handles = list(set([p.handle for p in posts]))
+    preloaded_users = {u.handle: u for u in User.query.filter(User.handle.in_(handles)).all()} if handles else {}
+
+    # Preload related posts
+    related_ids = list(set(
+        [p.parent_id for p in posts if p.parent_id] +
+        [p.original_post_id for p in posts if p.is_retweet and p.original_post_id]
+    ))
+    preloaded_posts = {p.id: p for p in Post.query.filter(Post.id.in_(related_ids)).all()} if related_ids else {}
+
+    # Preload likes
+    preloaded_likes = set()
+    if posts:
+        likes = PostLike.query.filter_by(user_id=viewer_id).filter(
+            PostLike.post_id.in_([p.id for p in posts])
+        ).all()
+        preloaded_likes = {lk.post_id for lk in likes}
+
+    res = [post_to_dict(p, viewer_id,
+                        preloaded_users=preloaded_users,
+                        preloaded_posts=preloaded_posts,
+                        preloaded_likes=preloaded_likes) for p in posts]
+    # Include a `has_more` flag so frontend knows whether to show Load More
+    return jsonify({'posts': res, 'has_more': len(posts) == limit})
 
 @app.route('/api/follow/<handle>', methods=['POST'])
 @login_required
