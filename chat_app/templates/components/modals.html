@@ -557,6 +557,11 @@
               return;
             }
 
+            // On first load, clear skeletons before rendering real posts
+            if (!before) {
+              area.innerHTML = '';
+            }
+
             // Remove old load-more button before appending new posts
             const oldBtn = document.getElementById('followingLoadMoreBtn');
             if (oldBtn) oldBtn.remove();
