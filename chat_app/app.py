@@ -74,12 +74,29 @@ from flask import session
 def make_session_permanent():
     session.permanent = True
 
+import threading
+from apscheduler.schedulers.background import BackgroundScheduler
+
+def start_news_bot():
+    try:
+        from news_bot import run_bot
+        run_bot()
+    except Exception as e:
+        print(f"Error running news bot: {e}")
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=start_news_bot, trigger="interval", hours=2)
+scheduler.start()
+
+# Run once 15 seconds after server startup
+threading.Timer(15, start_news_bot).start()
+
 # Chat Encryption Setup
 CHAT_KEY = os.getenv('CHAT_ENCRYPTION_KEY')
 if not CHAT_KEY:
     # Generate a key if not present (Not recommended for prod, but ensures it works)
     CHAT_KEY = base64.urlsafe_b64encode(os.urandom(32)).decode()
-    print("⚠️ Warning: CHAT_ENCRYPTION_KEY not found. Using transient key.")
+    print("Warning: CHAT_ENCRYPTION_KEY not found. Using transient key.")
 cipher_suite = Fernet(CHAT_KEY.encode())
 
 def encrypt_text(text):

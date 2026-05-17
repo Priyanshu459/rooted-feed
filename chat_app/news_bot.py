@@ -4,8 +4,11 @@ import uuid
 import feedparser
 import re
 
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 os.environ['SKIP_EVENTLET'] = '1'
-from app import app, db, User, Post
 
 # Configure your RSS feeds here
 RSS_FEEDS = [
@@ -46,7 +49,7 @@ def clean_html(raw_html):
     # Truncate if too long so it looks good on the feed
     return cleantext[:200] + '...' if len(cleantext) > 200 else cleantext
 
-def get_or_create_bot(handle, name, photo_url):
+def get_or_create_bot(db, User, handle, name, photo_url):
     user = User.query.filter_by(handle=handle).first()
     if not user:
         # Create a bot user dynamically
@@ -67,10 +70,11 @@ def get_or_create_bot(handle, name, photo_url):
 
 def run_bot():
     print("🌿 Starting Rooted News Bot...")
+    from app import app, db, User, Post
     with app.app_context():
         for feed_info in RSS_FEEDS:
             print(f"Fetching {feed_info['node']} from {feed_info['url']}...")
-            bot = get_or_create_bot(feed_info['bot_handle'], feed_info['bot_name'], feed_info['bot_photo'])
+            bot = get_or_create_bot(db, User, feed_info['bot_handle'], feed_info['bot_name'], feed_info['bot_photo'])
             
             # Parse the RSS feed
             feed = feedparser.parse(feed_info['url'])
