@@ -54,11 +54,25 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Session/Cookie Security (Fixes MismatchingStateError)
 # On Render, HTTPS is used, but locally HTTP might be used.
+from datetime import timedelta
+
 IS_PROD = os.getenv('RENDER') is not None or os.getenv('IS_PROD') is not None
 app.config['SESSION_COOKIE_SECURE'] = IS_PROD
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None' if IS_PROD else 'Lax'
 app.config['PREFERRED_URL_SCHEME'] = 'https' if IS_PROD else 'http'
+
+# Keep users logged in for 30 days
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
+app.config['REMEMBER_COOKIE_SECURE'] = IS_PROD
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'None' if IS_PROD else 'Lax'
+
+from flask import session
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
 
 # Chat Encryption Setup
 CHAT_KEY = os.getenv('CHAT_ENCRYPTION_KEY')
@@ -450,7 +464,7 @@ def auth_google():
         db.session.add(user)
         db.session.commit()
         
-    login_user(user)
+    login_user(user, remember=True)
     return redirect(url_for('index'))
 
 @app.route('/logout')
