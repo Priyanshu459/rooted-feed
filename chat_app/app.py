@@ -147,6 +147,19 @@ def add_security_headers(response):
         response.headers['Content-Security-Policy'] = "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https: wss:;"
     return response
 
+@app.route('/.well-known/assetlinks.json')
+def assetlinks():
+    return jsonify([{
+        "relation": ["delegate_permission/common.handle_all_urls"],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "online.rooted_feed.twa",
+            "sha256_cert_fingerprints": [
+                os.getenv('TWA_SHA256_KEY', 'YOUR_SHA256_KEY_HERE')
+            ]
+        }
+    }])
+
 # Cloudinary Setup
 cloudinary.config(
     cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
