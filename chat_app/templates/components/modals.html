@@ -676,10 +676,81 @@
 
       let currentTab = 'feedView'; // tracks the active view for badge logic
 
-      function switchTab(tab) {
+      // --- NATIVE ANDROID NAVIGATION INTERCEPTOR ---
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({ tab: 'feedView' }, "", window.location.pathname);
+      }
+
+      let backPressTimer = null;
+
+      window.addEventListener('popstate', (e) => {
+        // 1. Check if any modal is currently visible
+        const modals = ['storyViewer', 'createStoryModal', 'groupModal', 'confirmModal', 'profileEditModal', 'editPostModal', 'imageModal'];
+        let modalClosed = false;
+        modals.forEach(mId => {
+          const el = document.getElementById(mId);
+          if (el && el.style.display !== 'none' && el.style.display !== '') {
+            el.style.display = 'none';
+            modalClosed = true;
+          }
+        });
+
+        if (modalClosed) {
+          // Closed a modal, stay on current tab
+          if (window.history.pushState) window.history.pushState({ tab: currentTab }, "", window.location.pathname + (currentTab === 'feedView' ? '' : '#' + currentTab));
+          return;
+        }
+
+        // 2. If we are not on Home (feedView), single click back returns to Home
+        if (currentTab !== 'feedView') {
+          switchTab('feedView', false);
+        } else {
+          // 3. We are on Home. If double tap within 2 seconds, exit app
+          if (backPressTimer) {
+            clearTimeout(backPressTimer);
+            window.history.go(-2); // Let browser navigate back / exit
+          } else {
+            showToast("Press back again to exit");
+            if (window.history.pushState) window.history.pushState({ tab: 'feedView' }, "", window.location.pathname);
+            backPressTimer = setTimeout(() => {
+              backPressTimer = null;
+            }, 2000);
+          }
+        }
+      });
+
+      function showToast(msg) {
+        let toast = document.getElementById('androidToast');
+        if (!toast) {
+          toast = document.createElement('div');
+          toast.id = 'androidToast';
+          toast.style.cssText = 'position:fixed; bottom:85px; left:50%; transform:translateX(-50%); background:rgba(28,28,28,0.95); color:#fff; padding:12px 24px; border-radius:30px; font-size:14px; z-index:999999; box-shadow:0 4px 20px rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1); backdrop-filter:blur(10px); transition:opacity 0.3s;';
+          document.body.appendChild(toast);
+        }
+        toast.innerText = msg;
+        toast.style.display = 'block';
+        setTimeout(() => toast.style.opacity = '1', 10);
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          setTimeout(() => toast.style.display = 'none', 300);
+        }, 2000);
+      }
+
+      function switchTab(tab, pushState = true) {
         currentTab = tab;
+        if (pushState && window.history && window.history.pushState) {
+          window.history.pushState({ tab: tab }, "", window.location.pathname + (tab === 'feedView' ? '' : '#' + tab));
+        }
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        if (event && event.currentTarget) event.currentTarget.classList.add('active');
+
+        // Highlight correct nav item based on tab
+        const lookup = tab === 'explore' ? 'explore' : (tab === 'ai' || tab === 'aiView') ? 'aiView' : tab === 'notificationsView' ? 'openNotifications' : tab === 'messagesView' ? 'openMessages' : tab === 'profileView' ? 'goToMyProfile' : 'feedView';
+        document.querySelectorAll('.nav-item').forEach(el => {
+          const oc = el.getAttribute('onclick') || '';
+          if (oc.includes(lookup)) {
+            el.classList.add('active');
+          }
+        });
 
         const allViews = ['feedView', 'exploreView', 'aiView', 'profileView', 'messagesView', 'chatView', 'notificationsView', 'threadView', 'storyView'];
         allViews.forEach(v => {
@@ -707,7 +778,6 @@
         } else if (tab === 'messagesView') {
           document.getElementById('messagesView').style.display = 'flex';
           updateSEO("Messages", "Your private conversations on Rooted.");
-          // Clear message badge when entering messages tab
           const badge = document.getElementById('navBadge');
           const mobileBadge = document.getElementById('mobileChatBadge');
           if (badge) badge.style.display = 'none';
