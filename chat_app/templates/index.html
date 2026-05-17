@@ -6,7 +6,7 @@
   <div class="mobile-header">
     <div onclick="goToMyProfile()" style="cursor:pointer; display:flex; align-items:center;">
       {% if current_user.photo %}
-      <img src="{{ current_user.photo }}" style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:1.5px solid var(--border);">
+      <img src="{{ optimize_cloudinary_url(current_user.photo, 'profile') }}" style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:1.5px solid var(--border);">
       {% else %}
       <div class="mini-avatar" style="width:34px; height:34px; font-size:14px; border:1.5px solid var(--border);">{{ current_user.name[0] | upper }}</div>
       {% endif %}

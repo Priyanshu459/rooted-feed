@@ -18,6 +18,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import cloudinary
 import cloudinary.uploader
+import cloudinary.utils
 from authlib.integrations.flask_client import OAuth
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from cryptography.fernet import Fernet
@@ -565,6 +566,56 @@ def upload_file():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sign_upload')
+@login_required
+def sign_upload():
+    params_to_sign = request.args.to_dict()
+    if 'timestamp' not in params_to_sign:
+        params_to_sign['timestamp'] = int(time.time())
+    
+    upload_type = params_to_sign.pop('type', 'post')
+    folder_map = {
+        'post': 'rooted/posts',
+        'profile': 'rooted/profiles',
+        'cover': 'rooted/covers',
+        'story': 'rooted/stories'
+    }
+    target_folder = folder_map.get(upload_type, 'rooted/others')
+    params_to_sign['folder'] = target_folder
+
+    api_secret = os.getenv('CLOUDINARY_API_SECRET')
+    signature = cloudinary.utils.api_sign_request(params_to_sign, api_secret)
+    
+    return jsonify({
+        'signature': signature,
+        'timestamp': params_to_sign['timestamp'],
+        'cloud_name': os.getenv('CLOUDINARY_CLOUD_NAME'),
+        'api_key': os.getenv('CLOUDINARY_API_KEY'),
+        'folder': target_folder
+    })
+
+@app.context_processor
+def utility_processor():
+    def optimize_cloudinary_url(url, upload_type='post'):
+        if not url or 'res.cloudinary.com' not in url or '/upload/' not in url:
+            return url
+            
+        transforms = "f_auto,q_auto"
+        if upload_type == 'profile':
+            transforms = "w_400,h_400,c_thumb,g_face,f_auto,q_auto"
+        elif upload_type == 'cover':
+            transforms = "w_900,h_300,c_fill,g_auto,f_auto,q_auto"
+            
+        # Avoid double transforming
+        if f"/upload/{transforms}/" in url:
+            return url
+            
+        parts = url.split('/upload/')
+        return f"{parts[0]}/upload/{transforms}/{parts[1]}"
+        
+    return dict(optimize_cloudinary_url=optimize_cloudinary_url)
+
 
 
 @app.route('/api/user/<handle>')

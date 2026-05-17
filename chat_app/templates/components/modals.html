@@ -60,6 +60,17 @@
       type="application/json">{{ current_user | tojson | safe if current_user else "null" }}</script>
     <script>
       // --- GLOBAL VARS & SETUP ---
+      function optimizeCloudinaryUrl(url, type='post') {
+        if (!url || !url.includes('res.cloudinary.com') || !url.includes('/upload/')) return url;
+        let transforms = "f_auto,q_auto";
+        if (type === 'profile') transforms = "w_400,h_400,c_thumb,g_face,f_auto,q_auto";
+        else if (type === 'cover') transforms = "w_900,h_300,c_fill,g_auto,f_auto,q_auto";
+        
+        if (url.includes(`/upload/${transforms}/`)) return url;
+        const parts = url.split('/upload/');
+        return `${parts[0]}/upload/${transforms}/${parts[1]}`;
+      }
+
       const socket = io();
       const currentUser = JSON.parse(document.getElementById('user-data').textContent);
       window.currentUser = currentUser; // expose to story IIFE
@@ -325,14 +336,49 @@
           formData.append('is_private', String(isPrivate));
           doSave(formData);
         } else {
-          cropper.getCroppedCanvas({ width: 240, height: 240 }).toBlob((blob) => {
-            const formData = new FormData();
-            formData.append('media', blob, 'profile.jpg');
-            formData.append('type', 'profile');
-            formData.append('name', nameVal);
-            formData.append('bio', bioVal);
-            formData.append('is_private', String(isPrivate));
-            doSave(formData);
+          btn.innerText = 'Uploading...';
+          cropper.getCroppedCanvas({ width: 400, height: 400 }).toBlob((blob) => {
+            fetch('/api/sign_upload?type=profile')
+              .then(r => r.json())
+              .then(signData => {
+                if (signData.error) {
+                  showNotif('Signature error');
+                  btn.innerText = 'Save Profile';
+                  return;
+                }
+
+                const uploadData = new FormData();
+                uploadData.append('file', blob, 'profile.jpg');
+                uploadData.append('api_key', signData.api_key);
+                uploadData.append('timestamp', signData.timestamp);
+                uploadData.append('signature', signData.signature);
+                uploadData.append('folder', signData.folder);
+
+                fetch(`https://api.cloudinary.com/v1_1/${signData.cloud_name}/image/upload`, {
+                  method: 'POST',
+                  body: uploadData
+                })
+                  .then(r => r.json())
+                  .then(cData => {
+                    if (cData.secure_url) {
+                      const formData = new FormData();
+                      formData.append('type', 'profile');
+                      formData.append('name', nameVal);
+                      formData.append('bio', bioVal);
+                      formData.append('is_private', String(isPrivate));
+                      formData.append('media_url', cData.secure_url);
+                      formData.append('media_type', 'image');
+                      doSave(formData);
+                    } else {
+                      showNotif('Cloudinary upload failed');
+                      btn.innerText = 'Save Profile';
+                    }
+                  })
+                  .catch(() => {
+                    showNotif('Upload network error');
+                    btn.innerText = 'Save Profile';
+                  });
+              });
           }, 'image/jpeg', 0.92);
         }
       }
@@ -893,10 +939,11 @@
         let mediaHtml = '';
         if (post.mediaUrl) {
           const altText = post.text ? post.text.substring(0, 100) : "Post media on Rooted";
+          const optimizedMedia = optimizeCloudinaryUrl(post.mediaUrl, 'post');
           if (post.mediaType === 'image') {
-            mediaHtml = `<div class="post-media" onclick="openThread('${post.id}')" style="cursor:pointer;"><img src="${post.mediaUrl}" alt="${altText}"></div>`;
+            mediaHtml = `<div class="post-media" onclick="openThread('${post.id}')" style="cursor:pointer;"><img src="${optimizedMedia}" alt="${altText}"></div>`;
           } else if (post.mediaType === 'video') {
-            mediaHtml = `<div class="post-media"><video src="${post.mediaUrl}" controls aria-label="${altText}"></video></div>`;
+            mediaHtml = `<div class="post-media"><video src="${optimizedMedia}" controls aria-label="${altText}"></video></div>`;
           }
         }
 
@@ -920,7 +967,8 @@
 
         let avatarHtml = '';
         if (post.senderPhoto) {
-          avatarHtml = `<img src="${post.senderPhoto}" class="post-avatar" style="object-fit:cover;" data-post-handle="${post.handle}">`;
+          const optimizedAvatar = optimizeCloudinaryUrl(post.senderPhoto, 'profile');
+          avatarHtml = `<img src="${optimizedAvatar}" class="post-avatar" style="object-fit:cover;" data-post-handle="${post.handle}">`;
         } else {
           const initial = post.sender.charAt(0).toUpperCase();
           avatarHtml = `<div class="post-avatar">${initial}</div>`;
@@ -1002,7 +1050,6 @@
         const preview = document.getElementById('uploadPreview');
         const icon = document.getElementById('uploadIcon');
 
-        // Fix 1: Use classList instead of inline style so cancelUpload() can hide it correctly
         preview.classList.add('show');
         bar.style.width = '0%';
         pct.innerText = '0%';
@@ -1010,40 +1057,61 @@
         if (file.type.startsWith('video/')) icon.innerText = '🎥';
         else icon.innerText = '📷';
 
-        const formData = new FormData();
-        formData.append('media', file);
-        formData.append('type', 'post');
+        document.getElementById('sendBtn').disabled = true;
 
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/upload', true);
+        // Fetch signature for client-side direct upload
+        fetch('/api/sign_upload?type=post')
+          .then(r => r.json())
+          .then(signData => {
+            if (signData.error) {
+              showNotif('Signature error');
+              cancelUpload();
+              return;
+            }
 
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            document.getElementById('uploadBar').style.width = percent + '%';
-            document.getElementById('uploadPct').textContent = percent + '%';
-          }
-        };
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('api_key', signData.api_key);
+            formData.append('timestamp', signData.timestamp);
+            formData.append('signature', signData.signature);
+            formData.append('folder', signData.folder);
 
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            const res = JSON.parse(xhr.responseText);
-            pendingMediaUrl = res.url;
-            pendingMediaType = res.type;
-            document.getElementById('uploadPct').textContent = 'Attached';
-            document.getElementById('sendBtn').disabled = false;
-          } else {
-            showNotif('Upload failed');
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `https://api.cloudinary.com/v1_1/${signData.cloud_name}/auto/upload`, true);
+
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                const percent = Math.round((event.loaded / event.total) * 100);
+                document.getElementById('uploadBar').style.width = percent + '%';
+                document.getElementById('uploadPct').textContent = percent + '%';
+              }
+            };
+
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                const res = JSON.parse(xhr.responseText);
+                pendingMediaUrl = res.secure_url;
+                pendingMediaType = res.resource_type;
+                document.getElementById('uploadPct').textContent = 'Attached';
+                document.getElementById('sendBtn').disabled = false;
+              } else {
+                showNotif('Upload failed');
+                cancelUpload();
+              }
+            };
+
+            xhr.onerror = () => {
+              showNotif('Upload failed');
+              cancelUpload();
+            };
+
+            xhr.send(formData);
+          })
+          .catch(() => {
+            showNotif('Network error starting upload');
             cancelUpload();
-          }
-        };
+          });
 
-        xhr.onerror = () => {
-          showNotif('Upload failed');
-          cancelUpload();
-        };
-
-        xhr.send(formData);
         e.target.value = '';
       }
 

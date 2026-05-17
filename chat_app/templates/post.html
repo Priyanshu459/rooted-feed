@@ -239,7 +239,7 @@
     <div class="post-card">
       <div class="post-header">
         {% if author and author.profile_photo_url %}
-          <img src="{{ author.profile_photo_url }}" class="avatar" alt="{{ post.sender }}">
+          <img src="{{ optimize_cloudinary_url(author.profile_photo_url, 'profile') }}" class="avatar" alt="{{ post.sender }}">
         {% else %}
           <div class="avatar">{{ post.sender[0] | upper }}</div>
         {% endif %}
@@ -254,11 +254,11 @@
       {% endif %}
 
       {% if post.media_url %}
-        <div class="post-media">
+        <div class="post-media" style="margin-top: 16px;">
           {% if post.media_type == 'video' %}
-            <video src="{{ post.media_url }}" controls></video>
+            <video src="{{ optimize_cloudinary_url(post.media_url, 'post') }}" controls></video>
           {% else %}
-            <img src="{{ post.media_url }}" alt="Post media">
+            <img src="{{ optimize_cloudinary_url(post.media_url, 'post') }}" alt="Post media">
           {% endif %}
         </div>
       {% endif %}

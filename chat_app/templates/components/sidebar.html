@@ -69,7 +69,7 @@
 
       <div class="user-profile-mini" title="Profile Details" onclick="openProfileEdit()">
         {% if current_user.photo %}
-        <img src="{{ current_user.photo }}" class="mini-avatar" id="navAvatar" style="object-fit:cover;">
+        <img src="{{ optimize_cloudinary_url(current_user.photo, 'profile') }}" class="mini-avatar" id="navAvatar" style="object-fit:cover;">
         {% else %}
         <div class="mini-avatar" id="navAvatar">{{ current_user.name[0] | upper }}</div>
         {% endif %}
