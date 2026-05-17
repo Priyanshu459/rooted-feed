@@ -1784,3 +1784,71 @@
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.2);
     }
+
+    /* --- PREMIUM PWA LOADING SPLASH --- */
+    .pwa-loading-splash {
+      position: fixed;
+      inset: 0;
+      background: #000000;
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), filter 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .pwa-loading-splash.fade-out {
+      opacity: 0;
+      pointer-events: none;
+      filter: blur(10px);
+    }
+    .pwa-splash-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .pwa-pulse-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      background: var(--ig-grad);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 35px rgba(61, 255, 140, 0.4);
+      animation: pwaPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+    }
+    .pwa-pulse-logo span {
+      font-family: 'Syne', sans-serif;
+      font-size: 38px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+    .pwa-splash-text {
+      font-family: 'Syne', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      opacity: 0.9;
+      animation: pwaFade 1.8s infinite ease-in-out;
+    }
+    @keyframes pwaPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 25px rgba(61, 255, 140, 0.3); }
+      50% { transform: scale(1.08); box-shadow: 0 0 50px rgba(61, 255, 140, 0.7); }
+    }
+    @keyframes pwaFade {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    /* Page content smooth entrance */
+    body > .app {
+      animation: pwaAppEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes pwaAppEntrance {
+      from { opacity: 0; transform: scale(0.97) translateY(15px); filter: blur(5px); }
+      to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); }
+    }
