@@ -18,6 +18,7 @@
   <meta name="keywords" content="Rooted, Rooted Feed, Social Media, Authentic Networking, Community, Real-time Chat">
   <meta name="author" content="Rooted Social">
   <meta name="theme-color" content="#000000">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 
   <!-- Open Graph / Social Media Previews -->
@@ -50,6 +51,28 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
   <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+  <script>
+    (function() {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+      if (csrfToken) {
+        const originalFetch = window.fetch;
+        window.fetch = function() {
+          let [resource, config] = arguments;
+          if (config && config.method && !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(config.method.toUpperCase())) {
+            config.headers = config.headers || {};
+            // Don't modify headers if it's FormData because browser needs to set Content-Type with boundary automatically
+            // But we still need to pass X-CSRFToken header. Let's ensure headers is an object or Headers instance.
+            if (config.headers instanceof Headers) {
+              config.headers.append('X-CSRFToken', csrfToken);
+            } else {
+              config.headers['X-CSRFToken'] = csrfToken;
+            }
+          }
+          return originalFetch(resource, config);
+        };
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=2.0">
 </head>
 

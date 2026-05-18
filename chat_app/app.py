@@ -26,7 +26,10 @@ import base64
 
 load_dotenv()
 
+from flask_wtf.csrf import CSRFProtect
+
 app = Flask(__name__)
+csrf = CSRFProtect(app)
 # Proxy Fix for Render/Production
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
@@ -126,15 +129,16 @@ def find_user_by_handle(handle):
         user = User.query.filter_by(handle='@' + handle).first()
     return user
 
+from urllib.parse import urlparse, urlunparse
 @app.before_request
 def redirect_www():
     """Permanently redirect www.rooted-feed.online → rooted-feed.online"""
     host = request.host
     if host and host.startswith('www.'):
         non_www = host[4:]  # Strip leading 'www.'
-        url = request.url.replace(f'https://{host}', f'https://{non_www}', 1)
-        url = url.replace(f'http://{host}', f'https://{non_www}', 1)
-        return redirect(url, code=301)
+        parsed_url = urlparse(request.url)
+        new_url = urlunparse(parsed_url._replace(netloc=non_www))
+        return redirect(new_url, code=301)
 
 @app.after_request
 def add_security_headers(response):
@@ -431,7 +435,6 @@ def index():
             'id': current_user.id,
             'name': current_user.display_name,
             'handle': current_user.handle,
-            'uuid': current_user.uuid,
             'photo': current_user.profile_photo_url,
             'cover': current_user.cover_photo_url,
             'bio': current_user.bio,
@@ -909,6 +912,13 @@ def get_following():
 @app.route('/api/posts/user/<handle>')
 def get_user_posts(handle):
     """Return all posts for a given handle, newest first."""
+    user = find_user_by_handle(handle)
+    if user and user.is_private:
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Private account'}), 403
+        if current_user.id != user.id and not current_user.is_following(user):
+            return jsonify({'error': 'Private account'}), 403
+
     clean = handle.lstrip('@')
     handles = [clean, '@' + clean]
 
@@ -1376,6 +1386,9 @@ def handle_join(user_data):
 # --- VIDEO CALL SIGNALING ---
 @socketio.on('initiate_call')
 def handle_initiate_call(data):
+    if not current_user.is_authenticated:
+        return
+
     target_id = data.get('target_id')   # could be handle (@user) or group id
     room_id   = data.get('room_id')
     is_group  = data.get('is_group', False)
@@ -1403,9 +1416,12 @@ def handle_reject_call(data):
 
 @socketio.on('create_post')
 def handle_create_post(data):
+    if not current_user.is_authenticated:
+        return
+
     post_id = str(int(time.time() * 1000))
-    handle = data.get('handle', '@user')
-    sender = data.get('sender', 'Anonymous')
+    handle = current_user.handle
+    sender = current_user.display_name
     
     parent_id = data.get('parentId')
     if parent_id:
@@ -1473,6 +1489,8 @@ def handle_create_post(data):
 
 @socketio.on('bookmark_post')
 def handle_bookmark_post(post_id):
+    if not current_user.is_authenticated:
+        return
     post = Post.query.get(post_id)
     if post:
         post.bookmarks += 1
@@ -1725,6 +1743,10 @@ def get_user_followers_list(handle):
     user = find_user_by_handle(handle)
     if not user: return jsonify({'error': 'User not found'}), 404
     
+    if user.is_private:
+        if not current_user.is_authenticated: return jsonify({'error': 'Private account'}), 403
+        if current_user.id != user.id and not current_user.is_following(user): return jsonify({'error': 'Private account'}), 403
+
     followers_list = user.followers.all()
     res = []
     for u in followers_list:
@@ -1744,6 +1766,10 @@ def get_user_following_list(handle):
     user = find_user_by_handle(handle)
     if not user: return jsonify({'error': 'User not found'}), 404
     
+    if user.is_private:
+        if not current_user.is_authenticated: return jsonify({'error': 'Private account'}), 403
+        if current_user.id != user.id and not current_user.is_following(user): return jsonify({'error': 'Private account'}), 403
+
     following_list = user.followed.all()
     res = []
     for u in following_list:
