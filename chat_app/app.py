@@ -357,12 +357,22 @@ class Story(db.Model):
     likes = db.relationship('StoryLike', backref='story', lazy='dynamic', cascade='all, delete-orphan')
     comments = db.relationship('StoryComment', backref='story', lazy='dynamic', cascade='all, delete-orphan')
 
-    def to_dict(self, viewer_id=None):
-        user_liked = False
-        if viewer_id:
-            user_liked = StoryLike.query.filter_by(story_id=self.id, user_id=viewer_id).first() is not None
-        likes_count = StoryLike.query.filter_by(story_id=self.id).count()
-        comments_count = StoryComment.query.filter_by(story_id=self.id).count()
+    def to_dict(self, viewer_id=None, preloaded_likes=None, like_counts=None, comment_counts=None):
+        if preloaded_likes is not None:
+            user_liked = self.id in preloaded_likes
+        else:
+            user_liked = StoryLike.query.filter_by(story_id=self.id, user_id=viewer_id).first() is not None if viewer_id else False
+            
+        if like_counts is not None:
+            likes_count = like_counts.get(self.id, 0)
+        else:
+            likes_count = StoryLike.query.filter_by(story_id=self.id).count()
+            
+        if comment_counts is not None:
+            comments_count = comment_counts.get(self.id, 0)
+        else:
+            comments_count = StoryComment.query.filter_by(story_id=self.id).count()
+            
         return {
             'id': self.id,
             'user_handle': self.user.handle if self.user else None,
@@ -750,11 +760,24 @@ def video_call_page():
     return render_template('video_call_page.html')
 
 
+def preload_users_for_posts(posts):
+    raw_handles = list(set([p.handle for p in posts if p.handle]))
+    clean_handles = list(set([h.lstrip('@') for h in raw_handles]))
+    search_handles = list(set(raw_handles + clean_handles + ['@' + h for h in clean_handles]))
+    users = User.query.filter(User.handle.in_(search_handles)).all() if search_handles else []
+    preloaded_users = {}
+    for u in users:
+        preloaded_users[u.handle] = u
+        preloaded_users[u.handle.lstrip('@')] = u
+        preloaded_users['@' + u.handle.lstrip('@')] = u
+    return preloaded_users
+
+
 def post_to_dict(p, viewer_id=None, preloaded_users=None, preloaded_posts=None, preloaded_likes=None):
-    if preloaded_users is not None:
-        user = preloaded_users.get(p.handle)
+    if preloaded_users is not None and (p.handle in preloaded_users or p.handle.lstrip('@') in preloaded_users):
+        user = preloaded_users.get(p.handle) or preloaded_users.get(p.handle.lstrip('@'))
     else:
-        user = User.query.filter_by(handle=p.handle).first()
+        user = find_user_by_handle(p.handle)
         
     sender_name = user.display_name if user else p.sender
     sender_photo = user.profile_photo_url if user else None
@@ -826,8 +849,7 @@ def get_following_posts():
     viewer_id = current_user.id
 
     # Preload users
-    handles = list(set([p.handle for p in posts]))
-    preloaded_users = {u.handle: u for u in User.query.filter(User.handle.in_(handles)).all()} if handles else {}
+    preloaded_users = preload_users_for_posts(posts)
 
     # Preload related posts
     related_ids = list(set(
@@ -896,8 +918,7 @@ def get_user_posts(handle):
 
     viewer_id = current_user.id if current_user.is_authenticated else None
 
-    user_obj = User.query.filter(User.handle.in_(handles)).first()
-    preloaded_users = {h: user_obj for h in handles} if user_obj else {}
+    preloaded_users = preload_users_for_posts(posts)
 
     related_ids = list(set(
         [p.parent_id for p in posts if p.parent_id] +
@@ -1312,8 +1333,7 @@ def handle_join(user_data):
     recent_posts = Post.query.order_by(Post.timestamp.desc()).limit(200).all()
     
     # Pre-load all users to prevent N+1 queries
-    handles = list(set([p.handle for p in recent_posts]))
-    preloaded_users = {u.handle: u for u in User.query.filter(User.handle.in_(handles)).all()}
+    preloaded_users = preload_users_for_posts(recent_posts)
     
     # Filter private posts
     visible_posts = []
@@ -1599,7 +1619,26 @@ def get_user_stories(handle):
     twenty_four_hours_ago = int((time.time() - 24 * 3600) * 1000)
     stories = Story.query.filter_by(user_id=user.id).filter(Story.timestamp >= twenty_four_hours_ago).order_by(Story.timestamp.asc()).all()
     
-    return jsonify([s.to_dict(current_user.id if current_user.is_authenticated else None) for s in stories])
+    story_ids = [s.id for s in stories]
+    preloaded_likes = set()
+    like_counts = {}
+    comment_counts = {}
+    if story_ids:
+        all_likes = StoryLike.query.filter(StoryLike.story_id.in_(story_ids)).all()
+        for lk in all_likes:
+            like_counts[lk.story_id] = like_counts.get(lk.story_id, 0) + 1
+            if current_user.is_authenticated and lk.user_id == current_user.id:
+                preloaded_likes.add(lk.story_id)
+                
+        all_comments = StoryComment.query.filter(StoryComment.story_id.in_(story_ids)).all()
+        for cm in all_comments:
+            comment_counts[cm.story_id] = comment_counts.get(cm.story_id, 0) + 1
+            
+    res = [s.to_dict(viewer_id=current_user.id if current_user.is_authenticated else None,
+                     preloaded_likes=preloaded_likes,
+                     like_counts=like_counts,
+                     comment_counts=comment_counts) for s in stories]
+    return jsonify(res)
 
 @app.route('/api/stories/<story_id>/like', methods=['POST'])
 @login_required
