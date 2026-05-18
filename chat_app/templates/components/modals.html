@@ -758,6 +758,15 @@
           if (el) el.style.display = 'none';
         });
 
+        const fab = document.querySelector('.post-btn-fab');
+        if (fab) {
+          if (tab === 'messagesView' || tab === 'chatView' || tab === 'ai' || tab === 'aiView' || tab === 'storyView') {
+            fab.classList.add('fab-hidden');
+          } else {
+            fab.classList.remove('fab-hidden');
+          }
+        }
+
         if (tab === 'feedView') {
           document.getElementById('feedView').style.display = 'flex';
           updateSEO("Home", "Join the Rooted Feed. The internet's most authentic social media platform.");
@@ -850,8 +859,7 @@
       }
 
       function closeProfile() {
-        document.getElementById('profileView').style.display = 'none';
-        document.getElementById('feedView').style.display = 'flex';
+        switchTab('feedView');
       }
 
       function goToMyProfile() {
@@ -888,14 +896,21 @@
       }
 
       function closeThread() {
-        document.getElementById('threadView').style.display = 'none';
-        document.getElementById('feedView').style.display = 'flex';
+        switchTab('feedView');
+      }
+
+      function decodeHtmlEntities(str) {
+        if (!str) return '';
+        const txt = document.createElement("textarea");
+        txt.innerHTML = str;
+        return txt.value;
       }
 
       function formatRichText(text) {
         if (!text) return '';
+        const decoded = decodeHtmlEntities(text);
         // Escape HTML
-        let safeText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+        let safeText = decoded.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
         const urls = [];
         const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -1487,7 +1502,7 @@
         b.className = `chat-bubble ${m.is_me ? 'me' : 'them'}`;
         
         const textSpan = document.createElement('span');
-        textSpan.textContent = m.text;
+        textSpan.textContent = typeof decodeHtmlEntities === 'function' ? decodeHtmlEntities(m.text) : m.text;
         b.appendChild(textSpan);
         
         if (m.is_me && !is_group) {
@@ -2013,7 +2028,8 @@
 
       function appendAIMessage(text, role) {
         const area = document.getElementById('aiMessages');
-        const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+        const decoded = typeof decodeHtmlEntities === 'function' ? decodeHtmlEntities(text) : text;
+        const safe = decoded.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
         const wrap = document.createElement('div');
         if (role === 'user') {
           wrap.style.cssText = 'display:flex; justify-content:flex-end;';
@@ -2867,10 +2883,16 @@
           var st = document.getElementById('storyText');
           if (st) st.textContent = '';
           // Go back to Home feed
-          var _allV = ['feedView','exploreView','aiView','profileView','messagesView','chatView','notificationsView','threadView','storyView','followListView'];
-          _allV.forEach(function(v){ var e=document.getElementById(v); if(e) e.style.display='none'; });
-          var home = document.getElementById('feedView');
-          if (home) home.style.display = 'flex';
+          if (typeof switchTab === 'function') {
+            switchTab('feedView');
+          } else {
+            var _allV = ['feedView','exploreView','aiView','profileView','messagesView','chatView','notificationsView','threadView','storyView','followListView'];
+            _allV.forEach(function(v){ var e=document.getElementById(v); if(e) e.style.display='none'; });
+            var home = document.getElementById('feedView');
+            if (home) home.style.display = 'flex';
+            var fab = document.querySelector('.post-btn-fab');
+            if (fab) fab.classList.remove('fab-hidden');
+          }
           // Re-activate Home nav item
           document.querySelectorAll('.nav-item').forEach(function(el){ el.classList.remove('active'); });
           var homeNav = document.getElementById('mobileNavHome');
