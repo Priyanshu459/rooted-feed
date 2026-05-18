@@ -854,7 +854,7 @@ def get_following_posts():
 @app.route('/api/follow/<handle>', methods=['POST'])
 @login_required
 def follow_user(handle):
-    user = User.query.filter_by(handle=handle).first()
+    user = find_user_by_handle(handle)
     if not user or user == current_user:
         return jsonify({'error': 'Invalid action'}), 400
         
@@ -924,7 +924,7 @@ def get_user_posts(handle):
 @app.route('/api/unfollow/<handle>', methods=['POST'])
 @login_required
 def unfollow_user(handle):
-    user = User.query.filter_by(handle=handle).first()
+    user = find_user_by_handle(handle)
     if not user:
         return jsonify({'error': 'User not found'}), 404
         
@@ -941,7 +941,7 @@ def unfollow_user(handle):
 @app.route('/api/follow/accept/<handle>', methods=['POST'])
 @login_required
 def accept_follow(handle):
-    sender = User.query.filter_by(handle=handle).first()
+    sender = find_user_by_handle(handle)
     if not sender or current_user not in sender.requests_sent:
         return jsonify({'error': 'Invalid request'}), 400
         
@@ -1586,7 +1586,6 @@ def get_stories_feed():
     return jsonify(res)
 
 @app.route('/api/stories/<handle>', methods=['GET'])
-@login_required
 def get_user_stories(handle):
     clean_handle = handle.lstrip('@')
     user = User.query.filter(
@@ -1683,7 +1682,6 @@ def delete_story(story_id):
     return jsonify({'success': True})
 
 @app.route('/api/user/<handle>/followers', methods=['GET'])
-@login_required
 def get_user_followers_list(handle):
     user = find_user_by_handle(handle)
     if not user: return jsonify({'error': 'User not found'}), 404
@@ -1703,7 +1701,6 @@ def get_user_followers_list(handle):
     return jsonify(res)
 
 @app.route('/api/user/<handle>/following', methods=['GET'])
-@login_required
 def get_user_following_list(handle):
     user = find_user_by_handle(handle)
     if not user: return jsonify({'error': 'User not found'}), 404
