@@ -330,3 +330,23 @@ button {
         display: none; /* In a real app, we'd add a hamburger menu */
     }
 }
+
+/* Custom Animations for Modals & Drawers */
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+@keyframes floatUp {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Custom scrollbar for drawers & modals */
+#storyCommentsList::-webkit-scrollbar, #followModalListContainer::-webkit-scrollbar {
+    width: 6px;
+}
+#storyCommentsList::-webkit-scrollbar-thumb, #followModalListContainer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}

@@ -1755,7 +1755,7 @@
                 coverImg.style.display = 'block';
                 if (pCoverWrap) pCoverWrap.style.display = 'block';
               } else {
-                if (pCoverWrap) pCoverWrap.style.display = 'none';
+                if (pCoverWrap) pCoverWrap.style.display = u.is_self ? 'block' : 'none';
               }
 
               // Avatar DP Fix
@@ -2026,6 +2026,101 @@
         }
         area.appendChild(wrap);
         area.scrollTop = 99999;
+      }
+    </script>
+
+    <!-- FOLLOW LIST MODAL -->
+    <div id="followListModal" onclick="if(event.target===this) closeFollowListModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:500; align-items:center; justify-content:center; backdrop-filter:blur(8px);">
+      <div style="background:#1a1d1b; border:1px solid rgba(255,255,255,0.1); border-radius:24px; width:min(450px,90vw); max-height:80vh; display:flex; flex-direction:column; box-shadow:0 24px 64px rgba(0,0,0,0.5); animation:floatUp 0.2s ease-out; overflow:hidden;">
+        <div style="display:flex; border-bottom:1px solid rgba(255,255,255,0.1);">
+          <button id="tabFollowersBtn" onclick="switchFollowTab('followers')" style="flex:1; padding:16px; font-weight:700; font-size:15px; color:#fff; border:none; border-bottom:3px solid var(--accent); background:rgba(255,255,255,0.03); cursor:pointer;">Followers</button>
+          <button id="tabFollowingBtn" onclick="switchFollowTab('following')" style="flex:1; padding:16px; font-weight:700; font-size:15px; color:var(--text-dim); border:none; border-bottom:3px solid transparent; background:transparent; cursor:pointer;">Following</button>
+          <button onclick="closeFollowListModal()" style="padding:16px 20px; color:var(--text-dim); background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+        </div>
+        <div id="followModalListContainer" style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px;">
+          <!-- Loaded dynamically -->
+        </div>
+      </div>
+    </div>
+    <script>
+      let currentFollowModalHandle = '';
+      function openFollowListModal(initialTab) {
+        const titleEl = document.getElementById('profileViewHandle');
+        if (!titleEl) return;
+        currentFollowModalHandle = titleEl.textContent.trim().replace('@', '');
+        document.getElementById('followListModal').style.display = 'flex';
+        switchFollowTab(initialTab || 'followers');
+      }
+
+      function closeFollowListModal() {
+        document.getElementById('followListModal').style.display = 'none';
+      }
+
+      function switchFollowTab(tab) {
+        const fBtn = document.getElementById('tabFollowersBtn');
+        const flBtn = document.getElementById('tabFollowingBtn');
+        if (tab === 'followers') {
+          fBtn.style.color = '#fff'; fBtn.style.borderBottomColor = 'var(--accent)'; fBtn.style.background = 'rgba(255,255,255,0.03)';
+          flBtn.style.color = 'var(--text-dim)'; flBtn.style.borderBottomColor = 'transparent'; flBtn.style.background = 'transparent';
+          loadFollowList('followers');
+        } else {
+          flBtn.style.color = '#fff'; flBtn.style.borderBottomColor = 'var(--accent)'; flBtn.style.background = 'rgba(255,255,255,0.03)';
+          fBtn.style.color = 'var(--text-dim)'; fBtn.style.borderBottomColor = 'transparent'; fBtn.style.background = 'transparent';
+          loadFollowList('following');
+        }
+      }
+
+      function loadFollowList(type) {
+        const container = document.getElementById('followModalListContainer');
+        container.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-dim);">Loading...</div>';
+        fetch(`/api/user/${currentFollowModalHandle}/${type}`)
+          .then(r => r.json())
+          .then(users => {
+            if (users.error) { container.innerHTML = `<div style="text-align:center; padding:32px; color:#ff4a4a;">${users.error}</div>`; return; }
+            if (users.length === 0) { container.innerHTML = `<div style="text-align:center; padding:48px 24px; color:var(--text-dim);">No ${type} yet.</div>`; return; }
+            
+            container.innerHTML = users.map(u => `
+              <div style="display:flex; align-items:center; gap:14px; padding:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:16px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'" onclick="closeFollowListModal(); openProfile('${u.handle}', '${u.name.replace(/'/g, "\\'")}')">
+                ${u.photo ? `<img src="${u.photo}" style="width:44px; height:44px; border-radius:50%; object-fit:cover; flex-shrink:0;">` : `<div class="mini-avatar" style="width:44px; height:44px; font-size:16px;">${(u.name || u.handle)[0].toUpperCase()}</div>`}
+                <div style="flex:1; min-width:0;">
+                  <div style="font-weight:700; font-size:15px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${u.name}</div>
+                  <div style="font-size:13px; color:var(--text-dim);">${u.handle}</div>
+                  ${u.bio ? `<div style="font-size:12px; color:#a8a8a8; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${u.bio}</div>` : ''}
+                </div>
+                ${!u.is_self ? `<button class="btn-primary" style="padding:6px 16px; font-size:13px; border-radius:14px; background:${u.is_following ? '#4A5D4E' : 'var(--accent)'}; color:${u.is_following ? '#fff' : '#0A0D0B'}; font-weight:700;" onclick="event.stopPropagation(); toggleUserFollowModal('${u.handle}', this)">${u.is_following ? 'Following' : 'Follow'}</button>` : ''}
+              </div>
+            `).join('');
+          })
+          .catch(() => { container.innerHTML = '<div style="text-align:center; padding:32px; color:#ff4a4a;">Failed to load list.</div>'; });
+      }
+
+      function toggleUserFollowModal(handle, btn) {
+        btn.disabled = true;
+        fetch(`/api/follow/${encodeURIComponent(handle)}`, { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            btn.disabled = false;
+            if (data.success) {
+              if (btn.textContent === 'Follow') {
+                btn.textContent = 'Following';
+                btn.style.background = '#4A5D4E';
+                btn.style.color = '#fff';
+              } else {
+                btn.textContent = 'Follow';
+                btn.style.background = 'var(--accent)';
+                btn.style.color = '#0A0D0B';
+              }
+              if (currentFollowModalHandle === (currentUser?.handle || '').replace('@','')) {
+                fetch(`/api/user/${currentFollowModalHandle}`)
+                  .then(r=>r.json())
+                  .then(u=>{
+                    document.getElementById('profFollowers').textContent = u.followers_count;
+                    document.getElementById('profFollowing').textContent = u.following_count;
+                  });
+              }
+            }
+          })
+          .catch(() => { btn.disabled = false; });
       }
     </script>
 
@@ -2569,6 +2664,20 @@
           document.getElementById('storyText').textContent = s.text || '';
           document.getElementById('storyViewerTime').textContent = _fmtTime(s.timestamp);
 
+          var likeIcon = document.getElementById('storyLikeIcon');
+          var likeCount = document.getElementById('storyLikesCount');
+          var commCount = document.getElementById('storyCommentsCount');
+          var ownerActions = document.getElementById('storyOwnerActions');
+          if (likeIcon && likeCount && commCount) {
+            likeIcon.textContent = s.user_liked ? '❤️' : '🤍';
+            likeCount.textContent = s.likes_count || 0;
+            commCount.textContent = s.comments_count || 0;
+          }
+          if (ownerActions) {
+            var isSelf = window.currentUser && (s.user_handle === window.currentUser.handle || s.user_handle === '@' + window.currentUser.handle.replace('@',''));
+            ownerActions.style.display = isSelf ? 'flex' : 'none';
+          }
+
           // rebuild progress bar
           var pb = document.getElementById('storyProgressBar');
           pb.innerHTML = '';
@@ -2637,7 +2746,115 @@
           fill.style.width = '100%';
         }
 
+        var _storyTimerPaused = false;
+
         // ── public nav functions ─────────────────────────────────────
+        window.likeCurrentStory = function(e) {
+          if (e) e.stopPropagation();
+          var s = _stories[_storyIdx];
+          if (!s) return;
+          fetch('/api/stories/' + s.id + '/like', { method: 'POST' })
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+              if (data.success) {
+                s.user_liked = data.liked;
+                s.likes_count = data.likes_count;
+                var likeIcon = document.getElementById('storyLikeIcon');
+                var likeCount = document.getElementById('storyLikesCount');
+                if (likeIcon) likeIcon.textContent = data.liked ? '❤️' : '🤍';
+                if (likeCount) likeCount.textContent = data.likes_count;
+              }
+            });
+        };
+
+        window.toggleStoryComments = function(e) {
+          if (e) e.stopPropagation();
+          var drawer = document.getElementById('storyCommentsDrawer');
+          if (!drawer) return;
+          if (drawer.style.display === 'flex') {
+            drawer.style.display = 'none';
+            if (_storyTimerPaused) {
+              _storyTimer = setTimeout(function(){ nextStory(); }, 3000);
+              _storyTimerPaused = false;
+            }
+          } else {
+            clearTimeout(_storyTimer);
+            _storyTimerPaused = true;
+            drawer.style.display = 'flex';
+            loadStoryComments();
+          }
+        };
+
+        window.loadStoryComments = function() {
+          var s = _stories[_storyIdx];
+          if (!s) return;
+          var list = document.getElementById('storyCommentsList');
+          var count = document.getElementById('drawerCommentsCount');
+          if (!list) return;
+          list.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-dim);">Loading comments...</div>';
+          fetch('/api/stories/' + s.id + '/comments')
+            .then(function(r){ return r.json(); })
+            .then(function(comments){
+              if (count) count.textContent = comments.length;
+              if (comments.length === 0) {
+                list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-dim);">No comments yet. Start the conversation!</div>';
+                return;
+              }
+              list.innerHTML = comments.map(function(c){
+                return '<div style="display:flex; gap:12px; align-items:flex-start; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.05);">'
+                  + (c.user_photo ? '<img src="'+c.user_photo+'" style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0;">' : '<div class="mini-avatar" style="width:36px; height:36px; font-size:14px;">'+(c.user_name || 'U')[0].toUpperCase()+'</div>')
+                  + '<div style="flex:1; min-width:0;">'
+                  + '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">'
+                  + '<span style="font-weight:700; font-size:14px; color:#fff;">'+c.user_name+'</span>'
+                  + '<span style="font-size:11px; color:var(--text-dim);">'+_fmtTime(c.timestamp)+'</span>'
+                  + '</div>'
+                  + '<div style="font-size:14px; color:#ddd; line-height:1.4; word-break:break-word;">'+c.text+'</div>'
+                  + '</div></div>';
+              }).join('');
+              list.scrollTop = list.scrollHeight;
+            });
+        };
+
+        window.postStoryComment = function() {
+          var s = _stories[_storyIdx];
+          if (!s) return;
+          var input = document.getElementById('storyCommentInput');
+          var text = (input ? input.value : '').trim();
+          if (!text) return;
+          if (input) input.value = '';
+          
+          fetch('/api/stories/' + s.id + '/comments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text })
+          })
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            if (data.success) {
+              s.comments_count = data.comments_count;
+              var commCount = document.getElementById('storyCommentsCount');
+              if (commCount) commCount.textContent = data.comments_count;
+              loadStoryComments();
+            }
+          });
+        };
+
+        window.deleteCurrentStory = function(e) {
+          if (e) e.stopPropagation();
+          var s = _stories[_storyIdx];
+          if (!s) return;
+          if (confirm("Delete this story? This cannot be undone.")) {
+            fetch('/api/stories/' + s.id, { method: 'DELETE' })
+              .then(function(r){ return r.json(); })
+              .then(function(data){
+                if (data.success) {
+                  closeStory();
+                  if (typeof showNotif === 'function') showNotif('Story deleted');
+                }
+              });
+          }
+        };
+
         window.nextStory = function (e) {
           if (e) e.stopPropagation();
           clearTimeout(_storyTimer);

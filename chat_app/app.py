@@ -329,6 +329,22 @@ class Notification(db.Model):
             'sender_photo': sender_photo
         }
 
+class StoryLike(db.Model):
+    __tablename__ = 'story_like'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    story_id = db.Column(db.String(36), db.ForeignKey('story.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+
+class StoryComment(db.Model):
+    __tablename__ = 'story_comment'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    story_id = db.Column(db.String(36), db.ForeignKey('story.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    text = db.Column(db.String(500), nullable=False)
+    timestamp = db.Column(db.BigInteger)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+
 class Story(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -338,15 +354,25 @@ class Story(db.Model):
     timestamp = db.Column(db.BigInteger)
     
     user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('stories', lazy='dynamic', cascade='all, delete-orphan'))
+    likes = db.relationship('StoryLike', backref='story', lazy='dynamic', cascade='all, delete-orphan')
+    comments = db.relationship('StoryComment', backref='story', lazy='dynamic', cascade='all, delete-orphan')
 
-    def to_dict(self):
+    def to_dict(self, viewer_id=None):
+        user_liked = False
+        if viewer_id:
+            user_liked = StoryLike.query.filter_by(story_id=self.id, user_id=viewer_id).first() is not None
+        likes_count = StoryLike.query.filter_by(story_id=self.id).count()
+        comments_count = StoryComment.query.filter_by(story_id=self.id).count()
         return {
             'id': self.id,
             'user_handle': self.user.handle if self.user else None,
             'media_url': self.media_url,
             'media_type': self.media_type,
             'text': self.text,
-            'timestamp': self.timestamp
+            'timestamp': self.timestamp,
+            'likes_count': likes_count,
+            'comments_count': comments_count,
+            'user_liked': user_liked
         }
 
 class Post(db.Model):
@@ -372,6 +398,8 @@ class PostLike(db.Model):
     post_id = db.Column(db.String(50), db.ForeignKey('post.id'), primary_key=True)
 
 # Database migrations are handled by Flask-Migrate via alembic
+with app.app_context():
+    db.create_all()
 
 
 # Enable SocketIO
@@ -662,9 +690,14 @@ def utility_processor():
 
 
 
+def find_user_by_handle(handle):
+    if not handle: return None
+    clean = handle.lstrip('@')
+    return User.query.filter(db.or_(User.handle == handle, User.handle == '@' + clean, User.handle == clean)).first()
+
 @app.route('/api/user/<handle>')
 def get_user_profile(handle):
-    user = User.query.filter_by(handle=handle).first()
+    user = find_user_by_handle(handle)
     if not user:
         return jsonify({'error': 'User not found'}), 404
         
@@ -772,32 +805,6 @@ def post_to_dict(p, viewer_id=None, preloaded_users=None, preloaded_posts=None, 
         'retweetedFrom': retweeted_from,
         'userLiked': user_liked
     }
-
-@app.route('/api/post/<int:post_id>', methods=['PATCH', 'DELETE'])
-@login_required
-def modify_post(post_id):
-    post = Post.query.get(post_id)
-    if not post:
-        return jsonify({'error': 'Post not found'}), 404
-        
-    if post.handle != current_user.handle:
-        return jsonify({'error': 'Unauthorized'}), 403
-        
-    if request.method == 'DELETE':
-        db.session.delete(post)
-        db.session.commit()
-        socketio.emit('delete_post', {'id': post_id})
-        return jsonify({'success': True})
-        
-    if request.method == 'PATCH':
-        data = request.json
-        if not data or 'text' not in data:
-            return jsonify({'error': 'No text provided'}), 400
-            
-        post.text = data['text']
-        db.session.commit()
-        socketio.emit('edit_post', {'id': post_id, 'text': post.text})
-        return jsonify({'success': True})
 
 @app.route('/api/posts/following')
 @login_required
@@ -1593,7 +1600,127 @@ def get_user_stories(handle):
     twenty_four_hours_ago = int((time.time() - 24 * 3600) * 1000)
     stories = Story.query.filter_by(user_id=user.id).filter(Story.timestamp >= twenty_four_hours_ago).order_by(Story.timestamp.asc()).all()
     
-    return jsonify([s.to_dict() for s in stories])
+    return jsonify([s.to_dict(current_user.id if current_user.is_authenticated else None) for s in stories])
+
+@app.route('/api/stories/<story_id>/like', methods=['POST'])
+@login_required
+def like_story(story_id):
+    story = Story.query.get(story_id)
+    if not story: return jsonify({'error': 'Story not found'}), 404
+    
+    existing = StoryLike.query.filter_by(story_id=story_id, user_id=current_user.id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({'success': True, 'liked': False, 'likes_count': StoryLike.query.filter_by(story_id=story_id).count()})
+    else:
+        new_like = StoryLike(story_id=story_id, user_id=current_user.id)
+        db.session.add(new_like)
+        
+        if story.user_id != current_user.id:
+            n = Notification(user_id=story.user_id, sender_id=current_user.id, type='like', content=f"{current_user.display_name} liked your story.", timestamp=int(time.time() * 1000))
+            db.session.add(n)
+            socketio.emit('receive_notification', n.to_dict(), room=f"user_{story.user_id}")
+            
+        db.session.commit()
+        return jsonify({'success': True, 'liked': True, 'likes_count': StoryLike.query.filter_by(story_id=story_id).count()})
+
+@app.route('/api/stories/<story_id>/comments', methods=['GET', 'POST'])
+@login_required
+def story_comments(story_id):
+    story = Story.query.get(story_id)
+    if not story: return jsonify({'error': 'Story not found'}), 404
+    
+    if request.method == 'GET':
+        comments = StoryComment.query.filter_by(story_id=story_id).order_by(StoryComment.timestamp.asc()).all()
+        res = [{
+            'id': c.id,
+            'user_handle': c.user.handle if c.user else 'Unknown',
+            'user_name': c.user.display_name if c.user else 'Unknown',
+            'user_photo': c.user.profile_photo_url if c.user else None,
+            'text': c.text,
+            'timestamp': c.timestamp
+        } for c in comments]
+        return jsonify(res)
+        
+    if request.method == 'POST':
+        data = request.get_json()
+        text = (data.get('text') or '').strip()
+        if not text: return jsonify({'error': 'Comment cannot be empty'}), 400
+        
+        ts = int(time.time() * 1000)
+        c = StoryComment(story_id=story_id, user_id=current_user.id, text=text, timestamp=ts)
+        db.session.add(c)
+        
+        if story.user_id != current_user.id:
+            n = Notification(user_id=story.user_id, sender_id=current_user.id, type='comment', content=f"{current_user.display_name} commented on your story: {text[:30]}", timestamp=ts)
+            db.session.add(n)
+            socketio.emit('receive_notification', n.to_dict(), room=f"user_{story.user_id}")
+            
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'comment': {
+                'id': c.id,
+                'user_handle': current_user.handle,
+                'user_name': current_user.display_name,
+                'user_photo': current_user.profile_photo_url,
+                'text': c.text,
+                'timestamp': c.timestamp
+            },
+            'comments_count': StoryComment.query.filter_by(story_id=story_id).count()
+        })
+
+@app.route('/api/stories/<story_id>', methods=['DELETE'])
+@login_required
+def delete_story(story_id):
+    story = Story.query.get(story_id)
+    if not story: return jsonify({'error': 'Story not found'}), 404
+    if story.user_id != current_user.id: return jsonify({'error': 'Unauthorized'}), 403
+    
+    db.session.delete(story)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/api/user/<handle>/followers', methods=['GET'])
+@login_required
+def get_user_followers_list(handle):
+    user = find_user_by_handle(handle)
+    if not user: return jsonify({'error': 'User not found'}), 404
+    
+    followers_list = user.followers.all()
+    res = []
+    for u in followers_list:
+        res.append({
+            'id': u.id,
+            'handle': u.handle,
+            'name': u.display_name,
+            'photo': u.profile_photo_url,
+            'bio': u.bio,
+            'is_following': current_user.is_following(u) if current_user.is_authenticated else False,
+            'is_self': current_user.is_authenticated and current_user.id == u.id
+        })
+    return jsonify(res)
+
+@app.route('/api/user/<handle>/following', methods=['GET'])
+@login_required
+def get_user_following_list(handle):
+    user = find_user_by_handle(handle)
+    if not user: return jsonify({'error': 'User not found'}), 404
+    
+    following_list = user.followed.all()
+    res = []
+    for u in following_list:
+        res.append({
+            'id': u.id,
+            'handle': u.handle,
+            'name': u.display_name,
+            'photo': u.profile_photo_url,
+            'bio': u.bio,
+            'is_following': current_user.is_following(u) if current_user.is_authenticated else False,
+            'is_self': current_user.is_authenticated and current_user.id == u.id
+        })
+    return jsonify(res)
 
 @app.route('/api/trending')
 @login_required
