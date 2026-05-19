@@ -148,7 +148,7 @@ def add_security_headers(response):
     if IS_PROD:
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         # Basic CSP - restrict sources
-        response.headers['Content-Security-Policy'] = "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://www.googletagmanager.com https://upload-widget.cloudinary.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https: wss:;"
+        response.headers['Content-Security-Policy'] = "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://www.googletagmanager.com https://upload-widget.cloudinary.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; media-src 'self' https: blob:; connect-src 'self' https: wss:;"
     return response
 
 @app.route('/.well-known/assetlinks.json')
@@ -1793,9 +1793,9 @@ def get_reels():
         result.append({
             'id': r.id,
             'user': {
-                'name': r.user.name,
+                'name': r.user.display_name,
                 'handle': r.user.handle,
-                'photo': r.user.photo
+                'photo': r.user.profile_photo_url
             },
             'video_url': r.video_url,
             'caption': r.caption,
