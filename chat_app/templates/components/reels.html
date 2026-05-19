@@ -1,0 +1,269 @@
+<!-- REELS VIEW -->
+<div class="main-feed" id="reelsView" style="display:none; padding:0; background:#000; position:relative;">
+  <div style="position:absolute; top:20px; right:20px; z-index:100;">
+    <button class="btn-icon" onclick="openCreateReelModal()" style="background:rgba(0,0,0,0.5); color:#fff; backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.2);">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 7l-7 5 7 5V7z"></path>
+        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+        <line x1="8" y1="9" x2="8" y2="15"></line>
+        <line x1="5" y1="12" x2="11" y2="12"></line>
+      </svg>
+    </button>
+  </div>
+  <div class="reels-container" id="reelsFeed" style="width:100%; height:100%; overflow-y:auto; scroll-snap-type:y mandatory; scroll-behavior:smooth;">
+    <!-- Reels will be injected here via JavaScript -->
+  </div>
+</div>
+
+<!-- Add Reel Modal -->
+<div class="modal-overlay" id="createReelModal">
+  <div class="modal-content" style="max-width:500px; padding:0; overflow:hidden;">
+    <div style="padding:20px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="font-size:18px; font-weight:700;">Upload Reel</h3>
+      <button class="btn-icon" onclick="closeCreateReelModal()">✕</button>
+    </div>
+    
+    <div style="padding:24px;">
+      <div id="reelUploadArea" style="border:2px dashed rgba(255,255,255,0.2); border-radius:16px; padding:40px 20px; text-align:center; cursor:pointer; background:rgba(0,0,0,0.2); transition:all 0.2s;" onclick="document.getElementById('reelFileInput').click()">
+        <div style="font-size:32px; margin-bottom:12px;">🎬</div>
+        <div style="font-weight:600; font-size:16px; margin-bottom:8px;">Select a video to upload</div>
+        <div style="font-size:13px; color:var(--text-dim);">MP4, WebM, MOV (Max 50MB)</div>
+      </div>
+      
+      <input type="file" id="reelFileInput" accept="video/*" style="display:none;" onchange="handleReelFileSelect(event)">
+      
+      <div id="reelPreviewContainer" style="display:none; width:100%; position:relative; border-radius:16px; overflow:hidden; background:#000; margin-top:16px; aspect-ratio:9/16;">
+        <video id="reelPreviewVideo" style="width:100%; height:100%; object-fit:cover;" autoplay loop muted playsinline></video>
+        <button onclick="clearReelSelection()" style="position:absolute; top:12px; right:12px; background:rgba(0,0,0,0.6); color:#fff; border:none; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(4px);">✕</button>
+      </div>
+
+      <div style="margin-top:16px;">
+        <input type="text" id="reelCaptionInput" placeholder="Write a caption..." style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:12px 16px; color:var(--text-main); font-size:14px; outline:none;">
+      </div>
+      
+      <div id="reelUploadProgress" style="display:none; margin-top:20px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; font-weight:600;">
+          <span>Uploading...</span>
+          <span id="reelUploadPct">0%</span>
+        </div>
+        <div style="width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+          <div id="reelUploadBar" style="height:100%; width:0%; background:var(--accent); border-radius:3px; transition:width 0.2s ease-out;"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div style="padding:20px; border-top:1px solid rgba(255,255,255,0.1); display:flex; justify-content:flex-end;">
+      <button class="btn-primary" id="submitReelBtn" onclick="uploadReel()" disabled style="padding:10px 24px; border-radius:24px; font-weight:700; opacity:0.5; cursor:not-allowed;">Share Reel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let reelsLoaded = false;
+let reelsPage = 1;
+let hasNextReels = true;
+let isLoadingReels = false;
+let reelVideos = [];
+let currentPlayingVideo = null;
+
+function initReels() {
+    if (reelsLoaded) return;
+    reelsLoaded = true;
+    fetchReels();
+    
+    const feed = document.getElementById('reelsFeed');
+    feed.addEventListener('scroll', handleReelScroll, {passive: true});
+}
+
+function fetchReels() {
+    if (isLoadingReels || !hasNextReels) return;
+    isLoadingReels = true;
+    
+    fetch(`/api/reels?page=${reelsPage}`)
+    .then(r => r.json())
+    .then(data => {
+        const container = document.getElementById('reelsFeed');
+        data.reels.forEach(r => {
+            const el = document.createElement('div');
+            el.className = 'reel-item';
+            el.innerHTML = `
+                <video src="${r.video_url}" class="reel-video" loop muted playsinline data-id="${r.id}"></video>
+                <div class="reel-overlay">
+                    <div class="reel-info">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                            <img src="${r.user.photo || ''}" class="reel-avatar" onerror="this.style.display='none'">
+                            <span style="font-weight:700; font-size:15px; text-shadow:0 1px 3px rgba(0,0,0,0.8);">${r.user.name}</span>
+                        </div>
+                        <p style="font-size:14px; text-shadow:0 1px 3px rgba(0,0,0,0.8); margin:0;">${r.caption}</p>
+                    </div>
+                    <div class="reel-actions">
+                        <button class="reel-action-btn" onclick="toggleLikeReel('${r.id}', this)">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="${r.is_liked ? '#ff3040' : 'none'}" stroke="${r.is_liked ? '#ff3040' : 'currentColor'}" stroke-width="2">
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                            </svg>
+                            <span class="likes-count">${r.likes_count}</span>
+                        </button>
+                        <button class="reel-action-btn" onclick="alert('Comments coming soon!')">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                            </svg>
+                            <span>0</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(el);
+            reelVideos.push(el.querySelector('video'));
+        });
+        
+        hasNextReels = data.has_next;
+        reelsPage++;
+        isLoadingReels = false;
+        
+        if (data.reels.length > 0) handleReelScroll();
+    });
+}
+
+function handleReelScroll() {
+    if (!reelsLoaded) return;
+    const container = document.getElementById('reelsFeed');
+    const containerRect = container.getBoundingClientRect();
+    const centerY = containerRect.top + containerRect.height / 2;
+    
+    let closestVideo = null;
+    let minDistance = Infinity;
+    
+    reelVideos.forEach(vid => {
+        const rect = vid.getBoundingClientRect();
+        const vidCenterY = rect.top + rect.height / 2;
+        const distance = Math.abs(vidCenterY - centerY);
+        
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestVideo = vid;
+        }
+    });
+    
+    if (closestVideo && closestVideo !== currentPlayingVideo) {
+        if (currentPlayingVideo) {
+            currentPlayingVideo.pause();
+            currentPlayingVideo.currentTime = 0;
+        }
+        closestVideo.play().catch(e => console.log('Autoplay prevented:', e));
+        currentPlayingVideo = closestVideo;
+    }
+    
+    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 300) {
+        fetchReels();
+    }
+}
+
+function toggleLikeReel(reelId, btn) {
+    fetch(`/api/reels/${reelId}/like`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        const svg = btn.querySelector('svg');
+        const count = btn.querySelector('.likes-count');
+        if (data.is_liked) {
+            svg.setAttribute('fill', '#ff3040');
+            svg.setAttribute('stroke', '#ff3040');
+        } else {
+            svg.setAttribute('fill', 'none');
+            svg.setAttribute('stroke', 'currentColor');
+        }
+        count.textContent = data.likes_count;
+    });
+}
+
+function openCreateReelModal() {
+    document.getElementById('createReelModal').style.display = 'flex';
+}
+function closeCreateReelModal() {
+    document.getElementById('createReelModal').style.display = 'none';
+    clearReelSelection();
+}
+
+let selectedReelFile = null;
+function handleReelFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+        alert('Video must be under 50MB');
+        return;
+    }
+    selectedReelFile = file;
+    const url = URL.createObjectURL(file);
+    const vid = document.getElementById('reelPreviewVideo');
+    vid.src = url;
+    document.getElementById('reelPreviewContainer').style.display = 'block';
+    document.getElementById('reelUploadArea').style.display = 'none';
+    
+    const submitBtn = document.getElementById('submitReelBtn');
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '1';
+    submitBtn.style.cursor = 'pointer';
+}
+
+function clearReelSelection() {
+    selectedReelFile = null;
+    document.getElementById('reelFileInput').value = '';
+    document.getElementById('reelPreviewVideo').src = '';
+    document.getElementById('reelPreviewContainer').style.display = 'none';
+    document.getElementById('reelUploadArea').style.display = 'block';
+    document.getElementById('reelCaptionInput').value = '';
+    document.getElementById('reelUploadProgress').style.display = 'none';
+    document.getElementById('submitReelBtn').disabled = true;
+    document.getElementById('submitReelBtn').style.opacity = '0.5';
+}
+
+function uploadReel() {
+    if (!selectedReelFile) return;
+    
+    document.getElementById('submitReelBtn').disabled = true;
+    document.getElementById('submitReelBtn').textContent = 'Uploading...';
+    document.getElementById('reelUploadProgress').style.display = 'block';
+    
+    const formData = new FormData();
+    formData.append('media', selectedReelFile);
+    formData.append('type', 'reel');
+    
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload', true);
+    
+    xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            document.getElementById('reelUploadBar').style.width = pct + '%';
+            document.getElementById('reelUploadPct').textContent = pct + '%';
+        }
+    };
+    
+    xhr.onload = () => {
+        if (xhr.status === 200) {
+            const res = JSON.parse(xhr.responseText);
+            const caption = document.getElementById('reelCaptionInput').value;
+            
+            fetch('/api/reels/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ video_url: res.url, caption: caption })
+            })
+            .then(r => r.json())
+            .then(data => {
+                closeCreateReelModal();
+                reelsLoaded = false;
+                reelsPage = 1;
+                reelVideos = [];
+                document.getElementById('reelsFeed').innerHTML = '';
+                initReels();
+                document.getElementById('submitReelBtn').textContent = 'Share Reel';
+            });
+        } else {
+            alert('Upload failed.');
+            document.getElementById('submitReelBtn').disabled = false;
+            document.getElementById('submitReelBtn').textContent = 'Share Reel';
+        }
+    };
+    xhr.send(formData);
+}
+</script>

@@ -744,7 +744,7 @@
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
 
         // Highlight correct nav item based on tab
-        const lookup = tab === 'explore' ? 'explore' : (tab === 'ai' || tab === 'aiView') ? 'aiView' : tab === 'notificationsView' ? 'openNotifications' : tab === 'messagesView' ? 'openMessages' : tab === 'profileView' ? 'goToMyProfile' : 'feedView';
+        const lookup = tab === 'explore' ? 'explore' : (tab === 'ai' || tab === 'aiView') ? 'aiView' : tab === 'notificationsView' ? 'openNotifications' : tab === 'messagesView' ? 'openMessages' : tab === 'profileView' ? 'goToMyProfile' : tab === 'reelsView' ? 'reelsView' : 'feedView';
         document.querySelectorAll('.nav-item').forEach(el => {
           const oc = el.getAttribute('onclick') || '';
           if (oc.includes(lookup)) {
@@ -752,7 +752,7 @@
           }
         });
 
-        const allViews = ['feedView', 'exploreView', 'aiView', 'profileView', 'messagesView', 'chatView', 'notificationsView', 'threadView', 'storyView', 'followListView'];
+        const allViews = ['feedView', 'exploreView', 'aiView', 'profileView', 'messagesView', 'chatView', 'notificationsView', 'threadView', 'storyView', 'followListView', 'reelsView'];
         allViews.forEach(v => {
           const el = document.getElementById(v);
           if (el) el.style.display = 'none';
@@ -760,7 +760,7 @@
 
         const fab = document.querySelector('.post-btn-fab');
         if (fab) {
-          if (tab === 'messagesView' || tab === 'chatView' || tab === 'ai' || tab === 'aiView' || tab === 'storyView') {
+          if (tab === 'messagesView' || tab === 'chatView' || tab === 'ai' || tab === 'aiView' || tab === 'storyView' || tab === 'reelsView') {
             fab.classList.add('fab-hidden');
           } else {
             fab.classList.remove('fab-hidden');
@@ -791,6 +791,10 @@
           const mobileBadge = document.getElementById('mobileChatBadge');
           if (badge) badge.style.display = 'none';
           if (mobileBadge) mobileBadge.style.display = 'none';
+        } else if (tab === 'reelsView') {
+          document.getElementById('reelsView').style.display = 'flex';
+          updateSEO("Reels", "Watch short videos on Rooted Feed.");
+          if (typeof initReels === 'function') initReels();
         } else {
           const target = document.getElementById(tab);
           if (target) target.style.display = 'flex';

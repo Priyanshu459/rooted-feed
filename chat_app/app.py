@@ -411,6 +411,21 @@ class PostLike(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     post_id = db.Column(db.String(50), db.ForeignKey('post.id'), primary_key=True)
 
+class Reel(db.Model):
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    video_url = db.Column(db.String(200), nullable=False)
+    caption = db.Column(db.String(500))
+    timestamp = db.Column(db.BigInteger, nullable=False)
+    
+    user = db.relationship('User', backref=db.backref('reels', lazy='dynamic', cascade='all, delete-orphan'))
+    likes = db.relationship('ReelLike', backref='reel', lazy='dynamic', cascade='all, delete-orphan')
+
+class ReelLike(db.Model):
+    __tablename__ = 'reel_like'
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    reel_id = db.Column(db.String(36), db.ForeignKey('reel.id', ondelete='CASCADE'), primary_key=True)
+
 # Database migrations are handled by Flask-Migrate via alembic
 with app.app_context():
     db.create_all()
@@ -557,7 +572,8 @@ def upload_file():
             'post': 'rooted/posts',
             'profile': 'rooted/profiles',
             'cover': 'rooted/covers',
-            'story': 'rooted/stories'
+            'story': 'rooted/stories',
+            'reel': 'rooted/reels'
         }
         target_folder = folder_map.get(upload_type, 'rooted/others')
 
@@ -1737,6 +1753,86 @@ def delete_story(story_id):
     db.session.delete(story)
     db.session.commit()
     return jsonify({'success': True})
+
+# ==========================================
+# REELS API
+# ==========================================
+
+@app.route('/api/reels/create', methods=['POST'])
+@login_required
+def create_reel():
+    data = request.json
+    video_url = data.get('video_url')
+    caption = data.get('caption', '')
+    
+    if not video_url:
+        return jsonify({'error': 'video_url is required'}), 400
+        
+    reel = Reel(
+        user_id=current_user.id,
+        video_url=video_url,
+        caption=caption,
+        timestamp=int(time.time() * 1000)
+    )
+    db.session.add(reel)
+    db.session.commit()
+    return jsonify({'success': True, 'reel_id': reel.id})
+
+@app.route('/api/reels', methods=['GET'])
+@login_required
+def get_reels():
+    # Return latest reels
+    page = request.args.get('page', 1, type=int)
+    per_page = 15
+    
+    reels = Reel.query.order_by(Reel.timestamp.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    
+    result = []
+    for r in reels.items:
+        is_liked = current_user.is_authenticated and ReelLike.query.filter_by(user_id=current_user.id, reel_id=r.id).first() is not None
+        result.append({
+            'id': r.id,
+            'user': {
+                'name': r.user.name,
+                'handle': r.user.handle,
+                'photo': r.user.photo
+            },
+            'video_url': r.video_url,
+            'caption': r.caption,
+            'timestamp': r.timestamp,
+            'likes_count': r.likes.count(),
+            'is_liked': is_liked
+        })
+    return jsonify({'reels': result, 'has_next': reels.has_next})
+
+@app.route('/api/reels/<reel_id>/like', methods=['POST'])
+@login_required
+def toggle_reel_like(reel_id):
+    reel = Reel.query.get_or_404(reel_id)
+    like = ReelLike.query.filter_by(user_id=current_user.id, reel_id=reel_id).first()
+    
+    if like:
+        db.session.delete(like)
+        is_liked = False
+    else:
+        new_like = ReelLike(user_id=current_user.id, reel_id=reel_id)
+        db.session.add(new_like)
+        is_liked = True
+        
+        # Send notification
+        if current_user.id != reel.user_id:
+            notif = Notification(
+                user_id=reel.user_id,
+                sender_id=current_user.id,
+                type='like_reel',
+                text='liked your reel.',
+                timestamp=int(time.time() * 1000)
+            )
+            db.session.add(notif)
+            socketio.emit('new_notification', {'type': 'like_reel'}, room=str(reel.user_id))
+            
+    db.session.commit()
+    return jsonify({'success': True, 'is_liked': is_liked, 'likes_count': reel.likes.count()})
 
 @app.route('/api/user/<handle>/followers', methods=['GET'])
 def get_user_followers_list(handle):
