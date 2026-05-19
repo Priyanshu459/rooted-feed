@@ -426,6 +426,17 @@ class ReelLike(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
     reel_id = db.Column(db.String(36), db.ForeignKey('reel.id', ondelete='CASCADE'), primary_key=True)
 
+class ReelComment(db.Model):
+    __tablename__ = 'reel_comment'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    reel_id = db.Column(db.String(36), db.ForeignKey('reel.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    text = db.Column(db.String(500), nullable=False)
+    timestamp = db.Column(db.BigInteger)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+
+
 # Database migrations are handled by Flask-Migrate via alembic
 with app.app_context():
     db.create_all()
@@ -1801,6 +1812,7 @@ def get_reels():
             'caption': r.caption,
             'timestamp': r.timestamp,
             'likes_count': r.likes.count(),
+            'comments_count': ReelComment.query.filter_by(reel_id=r.id).count(),
             'is_liked': is_liked
         })
     return jsonify({'reels': result, 'has_next': reels.has_next})
@@ -1833,6 +1845,52 @@ def toggle_reel_like(reel_id):
             
     db.session.commit()
     return jsonify({'success': True, 'is_liked': is_liked, 'likes_count': reel.likes.count()})
+
+@app.route('/api/reels/<reel_id>/comments', methods=['GET', 'POST'])
+@login_required
+def reel_comments(reel_id):
+    reel = Reel.query.get(reel_id)
+    if not reel: return jsonify({'error': 'Reel not found'}), 404
+    
+    if request.method == 'GET':
+        comments = ReelComment.query.filter_by(reel_id=reel_id).order_by(ReelComment.timestamp.asc()).all()
+        res = [{
+            'id': c.id,
+            'user_handle': c.user.handle if c.user else 'Unknown',
+            'user_name': c.user.display_name if c.user else 'Unknown',
+            'user_photo': c.user.profile_photo_url if c.user else None,
+            'text': c.text,
+            'timestamp': c.timestamp
+        } for c in comments]
+        return jsonify(res)
+        
+    if request.method == 'POST':
+        data = request.get_json()
+        text = (data.get('text') or '').strip()
+        if not text: return jsonify({'error': 'Comment cannot be empty'}), 400
+        
+        ts = int(time.time() * 1000)
+        c = ReelComment(reel_id=reel_id, user_id=current_user.id, text=text, timestamp=ts)
+        db.session.add(c)
+        
+        if reel.user_id != current_user.id:
+            n = Notification(user_id=reel.user_id, sender_id=current_user.id, type='comment', content=f"{current_user.display_name} commented on your reel: {text[:30]}", timestamp=ts)
+            db.session.add(n)
+            socketio.emit('receive_notification', n.to_dict(), room=f"user_{reel.user_id}")
+            
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'comment': {
+                'id': c.id,
+                'user_handle': current_user.handle,
+                'user_name': current_user.display_name,
+                'user_photo': current_user.profile_photo_url,
+                'text': c.text,
+                'timestamp': c.timestamp
+            },
+            'comments_count': ReelComment.query.filter_by(reel_id=reel_id).count()
+        })
 
 @app.route('/api/user/<handle>/followers', methods=['GET'])
 def get_user_followers_list(handle):
