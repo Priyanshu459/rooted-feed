@@ -69,6 +69,44 @@
       --earth2: #3DFF8C;
     }
 
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #F4F6F4;
+        --bg-elevated: #FFFFFF;
+        --bg-card: #FFFFFF;
+        --surface: rgba(0, 0, 0, 0.05);
+        --surface-bright: rgba(0, 0, 0, 0.08);
+        --surface-hover: rgba(0, 0, 0, 0.1);
+        --border: rgba(0, 0, 0, 0.12);
+        --border-bright: rgba(0, 0, 0, 0.25);
+        --text-main: #131714;
+        --text-dim: #5C6E61;
+        --text-light: #738A7A;
+        --accent: #3DFF8C;
+        --accent-glow: rgba(61, 255, 140, 0.4);
+        --stone: #738A7A;
+        --green3: #2c9955;
+        --terracotta: #d93d4a;
+        --amber: #e58220;
+        --moss: #2f4528;
+        --green2: #c6e0c6;
+        --earth1: #131714;
+        --earth2: #2c9955;
+      }
+    }
+
+    .btn-semantic {
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 0;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      text-align: inherit;
+    }
+
+
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg);
@@ -143,7 +181,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
+      font-size: 1rem;
       font-weight: bold;
       border: 2px solid var(--bg);
       color: #fff;
@@ -154,7 +192,7 @@
     }
 
     .story-handle {
-      font-size: 12px;
+      font-size: 0.75rem;
       color: var(--text-main);
       text-overflow: ellipsis;
       overflow: hidden;
@@ -226,7 +264,7 @@
       right: 20px;
       color: #fff;
       text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
-      font-size: 20px;
+      font-size: 1.25rem;
       text-align: center;
       font-weight: 600;
     }
@@ -254,7 +292,7 @@
       align-items: center;
       justify-content: center;
       font-weight: bold;
-      font-size: 14px;
+      font-size: 0.875rem;
     }
 
     .story-close {
@@ -262,7 +300,7 @@
       top: 32px;
       right: 16px;
       color: white;
-      font-size: 28px;
+      font-size: 1.75rem;
       cursor: pointer;
       z-index: 10001;
       text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
@@ -361,7 +399,7 @@
       background: var(--ig-grad);
       color: #fff;
       font-family: 'DM Sans', -apple-system, sans-serif;
-      font-size: 14px;
+      font-size: 0.875rem;
       font-weight: 600;
       cursor: pointer;
       letter-spacing: 0.2px;
@@ -434,7 +472,7 @@
 
     .splash-title {
       font-family: 'Syne', sans-serif;
-      font-size: 56px;
+      font-size: 3.5rem;
       font-weight: 800;
       margin-bottom: 24px;
       line-height: 1.05;
@@ -446,7 +484,7 @@
     }
 
     .splash-subtitle {
-      font-size: 20px;
+      font-size: 1.25rem;
       line-height: 1.6;
       color: var(--text-dim);
       margin-bottom: 40px;
@@ -486,7 +524,7 @@
     .logo-text {
       font-family: 'Syne', sans-serif;
       /* was Playfair Display */
-      font-size: 42px;
+      font-size: 2.625rem;
       font-weight: 800;
       background: var(--ig-grad);
       -webkit-background-clip: text;
@@ -499,7 +537,7 @@
 
     .logo-sub {
       color: var(--text-dim);
-      font-size: 14px;
+      font-size: 0.875rem;
       margin-bottom: 32px;
     }
 
@@ -538,7 +576,7 @@
     /* ── 4. APP LOGO (sidebar) — also uses Syne ── */
     .app-logo span {
       font-family: 'Syne', sans-serif;
-      font-size: 22px;
+      font-size: 1.375rem;
       font-weight: 800;
       letter-spacing: -1px;
       background: var(--ig-grad);
@@ -559,7 +597,7 @@
       cursor: pointer;
       transition: background 0.15s, color 0.15s;
       margin-bottom: 2px;
-      font-size: 15px;
+      font-size: 0.9375rem;
       font-weight: 500;
       font-family: 'DM Sans', sans-serif;
       -webkit-tap-highlight-color: transparent;
@@ -589,7 +627,7 @@
       border-radius: 12px;
       font-family: 'DM Sans', sans-serif;
       font-weight: 700;
-      font-size: 15px;
+      font-size: 0.9375rem;
       letter-spacing: 0.1px;
       gap: 10px;
       box-shadow: 0 4px 20px rgba(220, 39, 67, 0.3);
@@ -606,7 +644,7 @@
       padding: 8px 20px;
       border-radius: 9px;
       font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
+      font-size: 0.8125rem;
       font-weight: 700;
       transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
     }
@@ -623,7 +661,7 @@
       border: 1.5px solid rgba(255, 255, 255, 0.22) !important;
       color: #fff !important;
       font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
+      font-size: 0.8125rem;
       font-weight: 500;
       cursor: pointer;
       transition: border-color 0.15s, background 0.15s;
@@ -660,7 +698,7 @@
       justify-content: center;
       color: #fff;
       font-weight: 700;
-      font-size: 14px;
+      font-size: 0.875rem;
     }
 
     /* MAIN FEED */
@@ -736,7 +774,7 @@
       border: none;
       border-bottom: 1px solid var(--border);
       outline: none;
-      font-size: 16px;
+      font-size: 1rem;
       color: #fff;
       padding: 8px 0;
       resize: none;
@@ -774,7 +812,7 @@
     .post-name {
       font-weight: 700;
       color: #fff;
-      font-size: 14px;
+      font-size: 0.875rem;
       cursor: pointer;
     }
 
@@ -784,17 +822,17 @@
 
     .post-handle {
       color: var(--text-dim);
-      font-size: 13px;
+      font-size: 0.8125rem;
       margin-left: 4px;
     }
 
     .post-time {
       color: var(--text-light);
-      font-size: 13px;
+      font-size: 0.8125rem;
     }
 
     .post-text {
-      font-size: 14px;
+      font-size: 0.875rem;
       line-height: 1.6;
       color: var(--text-main);
       margin: 8px 0 12px;
@@ -846,7 +884,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 1.125rem;
       transition: background 0.2s;
     }
 
@@ -864,7 +902,7 @@
       background: none;
       border: none;
       color: var(--text-dim);
-      font-size: 20px;
+      font-size: 1.25rem;
       cursor: pointer;
       padding: 4px 8px;
       border-radius: 50%;
@@ -896,7 +934,7 @@
 
     .post-menu-item {
       padding: 12px 16px;
-      font-size: 14px;
+      font-size: 0.875rem;
       color: #fff;
       cursor: pointer;
       transition: background 0.2s;
@@ -991,7 +1029,7 @@
       max-width: 75%;
       padding: 10px 16px;
       border-radius: 18px;
-      font-size: 14px;
+      font-size: 0.875rem;
       line-height: 1.4;
     }
 
@@ -1024,7 +1062,7 @@
     .message-tick {
       display: inline-block;
       margin-left: 4px;
-      font-size: 10px;
+      font-size: 0.625rem;
       opacity: 0.6;
       transition: all 0.2s;
     }
@@ -1046,7 +1084,7 @@
       padding: 12px 24px;
       border-radius: 24px;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 0.875rem;
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
       border: 1px solid var(--border);
       transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -1101,20 +1139,20 @@
     .conv-item .conv-name {
       font-weight: 700;
       color: #fff;
-      font-size: 15px;
+      font-size: 0.9375rem;
       margin-bottom: 4px;
     }
 
     .conv-item .conv-preview {
       color: var(--text-dim);
-      font-size: 14px;
+      font-size: 0.875rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .conv-item .conv-meta {
-      font-size: 12px;
+      font-size: 0.75rem;
       color: var(--text-light);
       text-align: right;
     }
@@ -1194,7 +1232,7 @@
         gap: 4px;
         padding: 8px 0;
         color: var(--text-dim);
-        font-size: 10px;
+        font-size: 0.625rem;
         font-weight: 500;
         background: transparent !important;
         margin: 0 !important;
@@ -1274,7 +1312,7 @@
 
       .feed-header span {
         padding: 14px 0 !important;
-        font-size: 13px !important;
+        font-size: 0.8125rem !important;
         letter-spacing: 0.5px;
       }
 
@@ -1301,12 +1339,12 @@
       }
 
       .splash-info h1 {
-        font-size: 48px !important;
+        font-size: 3rem !important;
         margin-bottom: 16px !important;
       }
 
       .splash-info p {
-        font-size: 18px !important;
+        font-size: 1.125rem !important;
         margin-bottom: 32px !important;
       }
 
@@ -1349,7 +1387,7 @@
       gap: 12px;
       padding: 13px 24px;
       border-radius: 10px;
-      font-size: 15px;
+      font-size: 0.9375rem;
       font-weight: 600;
       text-decoration: none;
       box-shadow: 0 4px 18px rgba(220, 39, 67, 0.3);
@@ -1367,7 +1405,7 @@
     #saveProfileBtn {
       padding: 14px;
       border-radius: 14px;
-      font-size: 15px;
+      font-size: 0.9375rem;
       font-weight: 700;
       letter-spacing: 0.1px;
     }
@@ -1381,7 +1419,7 @@
       border: 1.5px solid var(--border);
       background: transparent;
       color: var(--text-dim);
-      font-size: 13px;
+      font-size: 0.8125rem;
       font-weight: 500;
       cursor: pointer;
       white-space: nowrap;
@@ -1441,7 +1479,7 @@
       border: none;
       outline: none;
       color: var(--text-main);
-      font-size: 14px;
+      font-size: 0.875rem;
       font-family: inherit;
     }
 
@@ -1457,7 +1495,7 @@
       border-radius: 10px;
       padding: 10px 16px;
       color: var(--text-main);
-      font-size: 14px;
+      font-size: 0.875rem;
       font-family: inherit;
       outline: none;
       transition: border-color 0.15s;
@@ -1481,7 +1519,7 @@
     }
 
     .trending-title {
-      font-size: 18px;
+      font-size: 1.125rem;
       font-weight: 700;
       color: #fff;
       margin-bottom: 14px;
@@ -1504,20 +1542,20 @@
     }
 
     .trend-category {
-      font-size: 12px;
+      font-size: 0.75rem;
       color: var(--text-light);
       margin-bottom: 2px;
     }
 
     .trend-name {
-      font-size: 14px;
+      font-size: 0.875rem;
       font-weight: 700;
       color: #fff;
       margin-bottom: 2px;
     }
 
     .trend-count {
-      font-size: 12px;
+      font-size: 0.75rem;
       color: var(--text-dim);
     }
 
@@ -1544,7 +1582,7 @@
       border-radius: 50%;
       width: 18px;
       height: 18px;
-      font-size: 11px;
+      font-size: 0.6875rem;
       font-weight: 700;
       display: flex;
       align-items: center;
@@ -1620,7 +1658,7 @@
       border: 1px solid var(--border);
       background: rgba(255, 255, 255, 0.05);
       color: var(--text-main);
-      font-size: 15px;
+      font-size: 0.9375rem;
       font-family: inherit;
       outline: none;
       transition: border-color 0.15s;
@@ -1687,7 +1725,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 48px;
+      font-size: 3rem;
       font-weight: 700;
       color: #fff;
       pointer-events: none;
@@ -1743,7 +1781,7 @@
       }
 
       .splash-title {
-        font-size: 48px;
+        font-size: 3rem;
         font-family: 'Syne', sans-serif;
         font-weight: 800;
         margin-bottom: 12px;
@@ -1751,7 +1789,7 @@
       }
 
       .splash-subtitle {
-        font-size: 16px;
+        font-size: 1rem;
         margin-bottom: 24px;
       }
 
@@ -1826,13 +1864,13 @@
     }
     .pwa-pulse-logo span {
       font-family: 'Syne', sans-serif;
-      font-size: 38px;
+      font-size: 2.375rem;
       font-weight: 800;
       color: #ffffff;
     }
     .pwa-splash-text {
       font-family: 'Syne', sans-serif;
-      font-size: 24px;
+      font-size: 1.5rem;
       font-weight: 800;
       color: #ffffff;
       letter-spacing: -0.5px;
@@ -1855,4 +1893,12 @@
     @keyframes pwaAppEntrance {
       from { opacity: 0; transform: scale(0.97) translateY(15px); filter: blur(5px); }
       to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
     }

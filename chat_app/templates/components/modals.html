@@ -940,8 +940,8 @@
         return `
     <div class="post-actions" role="group" aria-label="Post actions">
 
-      <div class="post-action" onclick="replyToPost('${post.id}', '${post.handle}')"
-           title="Reply" role="button" tabindex="0" aria-label="Reply to post">
+      <button class="btn-semantic post-action" onclick="replyToPost('${post.id}', '${post.handle}')"
+           title="Reply" aria-label="Reply to post">
         <div class="action-icon">
           <svg class="action-svg" width="18" height="18" viewBox="0 0 24 24"
                fill="none" stroke="currentColor" stroke-width="2"
@@ -949,10 +949,10 @@
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
-      </div>
+      </button>
 
-      <div class="post-action" onclick="retweetPost('${post.originalPostId || post.id}')"
-           title="Reroot" role="button" tabindex="0" aria-label="Reroot">
+      <button class="btn-semantic post-action" onclick="retweetPost('${post.originalPostId || post.id}')"
+           title="Reroot" aria-label="Reroot">
         <div class="action-icon">
           <svg class="action-svg" width="18" height="18" viewBox="0 0 24 24"
                fill="none" stroke="currentColor" stroke-width="2"
@@ -961,12 +961,12 @@
             <path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
           </svg>
         </div>
-      </div>
+      </button>
 
-      <div class="post-action like ${post.userLiked ? 'liked' : ''}"
+      <button class="btn-semantic post-action like ${post.userLiked ? 'liked' : ''}"
            id="like-btn-${post.id}"
            onclick="likePost('${post.id}', this)"
-           title="Like" role="button" tabindex="0"
+           title="Like"
            aria-label="Like post" aria-pressed="${post.userLiked ? 'true' : 'false'}">
         <div class="action-icon">
           <svg class="heart-svg" width="18" height="18" viewBox="0 0 24 24"
@@ -977,10 +977,10 @@
           </svg>
         </div>
         <span id="like-count-${post.id}">${post.likes > 0 ? post.likes : ''}</span>
-      </div>
+      </button>
 
-      <div class="post-action" onclick="bookmarkPost('${post.id}', this)"
-           title="Bookmark" role="button" tabindex="0" aria-label="Save post">
+      <button class="btn-semantic post-action" onclick="bookmarkPost('${post.id}', this)"
+           title="Bookmark" aria-label="Save post">
         <div class="action-icon">
           <svg class="action-svg" width="18" height="18" viewBox="0 0 24 24"
                fill="none" stroke="currentColor" stroke-width="2"
@@ -988,11 +988,11 @@
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
-      </div>
+      </button>
 
-      <div class="post-action" title="Share"
+      <button class="btn-semantic post-action" title="Share"
            onclick="sharePost('${post.id}', event)"
-           role="button" tabindex="0" aria-label="Share post">
+           aria-label="Share post">
         <div class="action-icon">
           <svg class="action-svg" width="18" height="18" viewBox="0 0 24 24"
                fill="none" stroke="currentColor" stroke-width="2"
@@ -1003,7 +1003,7 @@
             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
           </svg>
         </div>
-      </div>
+      </button>
 
     </div>
   `;
@@ -1053,10 +1053,10 @@
         let avatarHtml = '';
         if (post.senderPhoto) {
           const optimizedAvatar = optimizeCloudinaryUrl(post.senderPhoto, 'profile');
-          avatarHtml = `<img src="${optimizedAvatar}" class="post-avatar" style="object-fit:cover;" data-post-handle="${post.handle}">`;
+          avatarHtml = `<img src="${optimizedAvatar}" class="post-avatar" style="object-fit:cover;" data-post-handle="${post.handle}" alt="${post.sender}'s avatar">`;
         } else {
           const initial = post.sender.charAt(0).toUpperCase();
-          avatarHtml = `<div class="post-avatar">${initial}</div>`;
+          avatarHtml = `<div class="post-avatar" aria-label="${post.sender}'s avatar">${initial}</div>`;
         }
 
         let metaHtml = '';
@@ -1217,7 +1217,7 @@
         if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
         if (diff < 86400000) return Math.floor(diff / 3600000) + 'h';
         const d = new Date(ms);
-        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        return new Intl.DateTimeFormat(navigator.language, { month: 'short', day: 'numeric' }).format(d);
       }
 
       function showNotif(msg, type = 'info') {
