@@ -238,6 +238,11 @@ function uploadReel() {
 
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/upload', true);
+    
+    var csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (csrfToken && csrfToken.content) {
+        xhr.setRequestHeader('X-CSRFToken', csrfToken.content);
+    }
 
     xhr.upload.onprogress = function(e) {
         if (e.lengthComputable) {
