@@ -1695,7 +1695,7 @@ def like_story(story_id):
     if existing:
         db.session.delete(existing)
         db.session.commit()
-        socketio.emit('update_story_likes', {'id': story_id, 'likes': StoryLike.query.filter_by(story_id=story_id).count()}, broadcast=True)
+        socketio.emit('update_story_likes', {'id': story_id, 'likes': StoryLike.query.filter_by(story_id=story_id).count()})
         return jsonify({'success': True, 'liked': False, 'likes_count': StoryLike.query.filter_by(story_id=story_id).count()})
     else:
         new_like = StoryLike(story_id=story_id, user_id=current_user.id)
@@ -1707,7 +1707,7 @@ def like_story(story_id):
             socketio.emit('receive_notification', n.to_dict(), room=f"user_{story.user_id}")
             
         db.session.commit()
-        socketio.emit('update_story_likes', {'id': story_id, 'likes': StoryLike.query.filter_by(story_id=story_id).count()}, broadcast=True)
+        socketio.emit('update_story_likes', {'id': story_id, 'likes': StoryLike.query.filter_by(story_id=story_id).count()})
         return jsonify({'success': True, 'liked': True, 'likes_count': StoryLike.query.filter_by(story_id=story_id).count()})
 
 @app.route('/api/stories/<story_id>/comments', methods=['GET', 'POST'])
@@ -1846,7 +1846,7 @@ def toggle_reel_like(reel_id):
             socketio.emit('new_notification', {'type': 'like_reel'}, room=str(reel.user_id))
             
     db.session.commit()
-    socketio.emit('update_reel_likes', {'id': reel_id, 'likes': reel.likes.count()}, broadcast=True)
+    socketio.emit('update_reel_likes', {'id': reel_id, 'likes': reel.likes.count()})
     return jsonify({'success': True, 'is_liked': is_liked, 'likes_count': reel.likes.count()})
 
 @app.route('/api/reels/<reel_id>/comments', methods=['GET', 'POST'])
