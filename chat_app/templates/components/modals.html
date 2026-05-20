@@ -166,10 +166,28 @@
       });
 
       socket.on('update_likes', (data) => {
-        const likeCountSpan = document.getElementById(`like-count-${data.id}`);
-        const likeBtn = document.getElementById(`like-btn-${data.id}`);
-        if (likeCountSpan) {
-          likeCountSpan.textContent = data.likes > 0 ? data.likes : '';
+        const likeCountSpans = document.querySelectorAll(`[id="like-count-${data.id}"]`);
+        likeCountSpans.forEach(span => {
+          span.textContent = data.likes > 0 ? data.likes : '';
+        });
+      });
+
+      socket.on('update_reel_likes', (data) => {
+        const buttons = document.querySelectorAll(`button[data-reel-id="${data.id}"]`);
+        buttons.forEach(btn => {
+          const countSpan = btn.querySelector('.reel-likes-count');
+          if (countSpan) countSpan.textContent = data.likes;
+        });
+      });
+
+      socket.on('update_story_likes', (data) => {
+        if (typeof _stories !== 'undefined') {
+          const s = _stories.find(st => st.id === data.id);
+          if (s) s.likes_count = data.likes;
+          if (_stories[_storyIdx] && _stories[_storyIdx].id === data.id) {
+            const countSpan = document.getElementById('storyLikesCount');
+            if (countSpan) countSpan.textContent = data.likes;
+          }
         }
       });
 
