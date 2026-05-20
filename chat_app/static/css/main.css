@@ -1192,6 +1192,10 @@
         padding-bottom: 70px !important;
       }
 
+      #addReelContainer {
+        top: calc(80px + env(safe-area-inset-top)) !important;
+      }
+
       .mobile-header {
         display: flex !important;
         position: fixed;
