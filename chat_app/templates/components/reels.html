@@ -82,7 +82,7 @@ var hasNextReels = true;
 var isLoadingReels = false;
 var reelVideos = [];
 var reelObserver = null;
-window.globalReelsMuted = true;
+window.globalReelsMuted = localStorage.getItem('rooted_reels_muted') === 'true' || localStorage.getItem('rooted_reels_muted') === null;
 var currentReelIdForComments = null;
 var currentReelCommentBtn = null;
 
@@ -182,6 +182,7 @@ function fetchReels() {
 }
 
 function toggleLikeReel(reelId, btn) {
+    if (navigator.vibrate) navigator.vibrate(50);
     var csrfToken = document.querySelector('meta[name="csrf-token"]');
     var headers = { 'Content-Type': 'application/json' };
     if (csrfToken && csrfToken.content) {
@@ -213,6 +214,7 @@ function closeCreateReelModal() {
 
 function toggleMute(btn) {
     window.globalReelsMuted = !window.globalReelsMuted;
+    localStorage.setItem('rooted_reels_muted', window.globalReelsMuted);
     document.querySelectorAll('#reelsFeed video').forEach(function(vid) {
         vid.muted = window.globalReelsMuted;
         var btnInVid = vid.parentElement.querySelector('button[onclick="toggleMute(this)"]');

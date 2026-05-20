@@ -170,15 +170,6 @@
         const likeBtn = document.getElementById(`like-btn-${data.id}`);
         if (likeCountSpan) {
           likeCountSpan.textContent = data.likes > 0 ? data.likes : '';
-          if (data.userLiked) {
-            // Animate and mark as liked
-            likeBtn.classList.remove('liked');
-            void likeBtn.offsetWidth; // trigger reflow
-            likeBtn.classList.add('liked');
-          } else {
-            // Unliked — remove styling
-            likeBtn.classList.remove('liked');
-          }
         }
       });
 
@@ -453,6 +444,21 @@
       // Track liked post IDs so we can toggle state locally before server responds
       const likedPosts = new Set();
 
+      function triggerDoubleTapLike(event, postId) {
+        event.stopPropagation();
+        event.preventDefault();
+        const btn = document.getElementById(`like-btn-${postId}`);
+        if (btn && !likedPosts.has(postId)) {
+          likePost(postId, btn);
+        }
+        const heart = document.getElementById(`heart-pop-${postId}`);
+        if (heart) {
+          heart.style.display = 'block';
+          heart.style.animation = 'heartPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+          setTimeout(() => { heart.style.display = 'none'; heart.style.animation = ''; }, 800);
+        }
+      }
+
       function createPost() {
         const input = document.getElementById('msgInput');
         const text = input.value.trim();
@@ -485,6 +491,7 @@
 
       // ── FIX 5 & 6: likePost() with SVG heart animation ─────────────
       function likePost(postId, btnEl) {
+        if (navigator.vibrate) navigator.vibrate(50);
         const isLiked = likedPosts.has(postId);
         const countSpan = document.getElementById(`like-count-${postId}`);
         const heartSvg = btnEl.querySelector('.heart-svg');
@@ -1030,7 +1037,14 @@
           const altText = post.text ? post.text.substring(0, 100) : "Post media on Rooted";
           const optimizedMedia = optimizeCloudinaryUrl(post.mediaUrl, 'post');
           if (post.mediaType === 'image') {
-            mediaHtml = `<div class="post-media" onclick="openThread('${post.id}')" style="cursor:pointer;"><img src="${optimizedMedia}" alt="${altText}"></div>`;
+            mediaHtml = `<div class="post-media" onclick="openThread('${post.id}')" ondblclick="triggerDoubleTapLike(event, '${post.id}')" style="cursor:pointer; position:relative;">
+              <img src="${optimizedMedia}" alt="${altText}">
+              <div id="heart-pop-${post.id}" style="position:absolute; top:50%; left:50%; margin-top:-40px; margin-left:-40px; display:none; pointer-events:none; z-index:10; filter:drop-shadow(0px 4px 10px rgba(0,0,0,0.5));">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="0">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+              </div>
+            </div>`;
           } else if (post.mediaType === 'video') {
             mediaHtml = `<div class="post-media"><video src="${optimizedMedia}" controls aria-label="${altText}"></video></div>`;
           }
