@@ -1187,6 +1187,11 @@
         min-height: 0;
       }
 
+      #reelsView {
+        padding-top: calc(60px + env(safe-area-inset-top)) !important;
+        padding-bottom: 70px !important;
+      }
+
       .mobile-header {
         display: flex !important;
         position: fixed;
